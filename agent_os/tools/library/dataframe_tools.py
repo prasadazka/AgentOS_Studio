@@ -2712,12 +2712,18 @@ class DataFrameGroupAggregateTool(BaseTool):
                     _import_pyarrow()
                     grouped.to_parquet(output, index=False)
 
+            # Return full result up to a generous cap so the agent doesn't
+            # blindly re-call when there are more than 10 groups.
+            PREVIEW_CAP = 500
+            preview_rows = grouped.head(PREVIEW_CAP).to_dict(orient='records')
             result = {
                 "group_by_columns": validated.group_by if isinstance(validated.group_by, list) else [validated.group_by],
                 "aggregations_applied": validated.aggregations,
                 "result_rows": len(grouped),
                 "result_columns": grouped.columns.tolist(),
-                "preview": grouped.head(10).to_dict(orient='records'),
+                "preview": preview_rows,
+                "preview_truncated": len(grouped) > PREVIEW_CAP,
+                "preview_rows_returned": len(preview_rows),
                 "saved_to": validated.output_path
             }
 
@@ -2745,6 +2751,114 @@ class DataFrameGroupAggregateTool(BaseTool):
                 group_by=group_by,
                 error=str(e),
                 error_code=ErrorCode.TOOL_EXECUTION_FAILED.value
+            ).to_json()
+
+
+# ============================================================================
+# TOOL: DataFrameHistogram  (numeric distribution = bin counts)
+# ============================================================================
+
+class DataFrameHistogramInput(BaseModel):
+    file_path: str = Field(..., description="Path to data file (csv/xlsx/parquet)")
+    column: str = Field(..., description="Numeric column to bin")
+    bins: int = Field(default=10, ge=2, le=100, description="Number of equal-width bins")
+
+
+class DataFrameHistogramOutput(BaseModel):
+    success: bool
+    file_path: str
+    column: str
+    result: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+    error_code: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+    def to_json(self) -> str:
+        return json.dumps(self.model_dump(), default=str)
+
+
+class DataFrameHistogramTool(BaseTool):
+    """
+    Compute a histogram (bin counts) for a numeric column. Use this when the
+    user asks for a 'distribution', 'histogram', 'breakdown by range', or wants
+    to plot how values spread across buckets. Returns bin labels + counts in
+    a single call — suitable to drop straight into a chart.
+    """
+
+    def __init__(self):
+        super().__init__(
+            ToolMetadata(
+                name="dataframe_histogram",
+                description="Compute bin counts for a numeric column (true histogram). Use for ANY 'distribution' / 'histogram' / 'breakdown by range' request — returns bin labels + counts in one call. Parameters: file_path, column, bins (default 10). Far better than dataframe_group_aggregate for numeric columns.",
+                category="data_analysis",
+                tags=["dataframe", "histogram", "distribution", "binning", "analysis"]
+            )
+        )
+
+    def _execute(self, file_path: str, column: str, bins: int = 10, **kwargs) -> str:
+        start_time = time.time()
+        try:
+            validated = DataFrameHistogramInput(file_path=file_path, column=column, bins=bins)
+            path = _validate_path(file_path, must_exist=True)
+            _check_memory_usage()
+
+            file_ext = path.suffix.lower()
+            pd = _import_pandas()
+
+            if file_ext == '.csv':
+                df = pd.read_csv(path)
+            elif file_ext in ('.xlsx', '.xls'):
+                _import_openpyxl()
+                df = pd.read_excel(path)
+            elif file_ext == '.parquet':
+                _import_pyarrow()
+                df = pd.read_parquet(path)
+            else:
+                raise ToolValidationError(f"Unsupported file type: {file_ext}")
+
+            if validated.column not in df.columns:
+                raise ToolValidationError(
+                    f"Column '{validated.column}' not found. Available: {list(df.columns)}"
+                )
+
+            series = pd.to_numeric(df[validated.column], errors="coerce").dropna()
+            if series.empty:
+                raise ToolValidationError(f"Column '{validated.column}' has no numeric values")
+
+            cats = pd.cut(series, bins=validated.bins, include_lowest=True)
+            counts = cats.value_counts(sort=False)
+
+            histogram = [
+                {
+                    "bin_label": f"{interval.left:.2f} - {interval.right:.2f}",
+                    "bin_start": float(interval.left),
+                    "bin_end":   float(interval.right),
+                    "count":     int(count),
+                }
+                for interval, count in counts.items()
+            ]
+
+            result = {
+                "column": validated.column,
+                "bins": validated.bins,
+                "total_values": int(series.count()),
+                "min": float(series.min()),
+                "max": float(series.max()),
+                "mean": float(series.mean()),
+                "std": float(series.std()),
+                "histogram": histogram,
+            }
+            metadata = {"execution_time_ms": round((time.time() - start_time) * 1000, 2)}
+
+            return DataFrameHistogramOutput(
+                success=True, file_path=file_path, column=column,
+                result=result, metadata=metadata,
+            ).to_json()
+        except Exception as e:
+            logger.error(f"Error computing histogram: {e}")
+            return DataFrameHistogramOutput(
+                success=False, file_path=file_path, column=column,
+                error=str(e), error_code=ErrorCode.TOOL_EXECUTION_FAILED.value,
             ).to_json()
 
 

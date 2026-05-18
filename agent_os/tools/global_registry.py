@@ -203,7 +203,8 @@ def get_global_registry():
                 DataFrameVisualizeTool,
                 DataFrameFetchAPITool,
                 DataFramePivotTool,
-                DataFrameAnalyzeFolderTool
+                DataFrameAnalyzeFolderTool,
+                DataFrameHistogramTool,
             )
             tool_classes.extend([
                 DataFrameReadExcelTool,
@@ -226,7 +227,8 @@ def get_global_registry():
                 DataFrameVisualizeTool,
                 DataFrameFetchAPITool,
                 DataFramePivotTool,
-                DataFrameAnalyzeFolderTool
+                DataFrameAnalyzeFolderTool,
+                DataFrameHistogramTool,
             ])
         except ImportError:
             pass

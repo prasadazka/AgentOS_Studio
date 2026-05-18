@@ -11,7 +11,7 @@ from typing import Any, Optional
 from db.database import get_db, generate_id, now_iso
 from core.memory_pool import get_project_memory, evict_project_memory
 
-PROJECTS_DIR = Path(os.getenv("AGENTOS_PROJECTS_DIR", os.path.expanduser("~/.agent_os/projects")))
+PROJECTS_DIR = Path((os.getenv("AGENTOS_PROJECTS_DIR") or "").strip() or os.path.expanduser("~/.agent_os/projects"))
 
 
 # ---------------------------------------------------------------------------

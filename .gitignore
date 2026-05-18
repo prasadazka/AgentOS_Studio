@@ -110,3 +110,8 @@ patients_raw.csv
 # --- Internal / strategy docs (do not publish) ---
 claude.md
 CLAUDE.md
+
+# --- Local test scratch files ---
+backend/_local_*.py
+backend/_uvicorn.log
+backend/_dataanalyst_prompt.txt
