@@ -1,0 +1,164 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'agent_os/**'
+      - 'pyproject.toml'
+      - 'cloudbuild.yaml'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'What to deploy'
+        required: true
+        default: 'both'
+        type: choice
+        options: [both, backend, frontend]
+
+env:
+  PROJECT_ID: agentos-496704
+  REGION: us-central1
+  AR_REPO: agentos
+  BACKEND_SERVICE: agentos-backend
+  FRONTEND_SERVICE: agentos-frontend
+
+jobs:
+  # --------------------------------------------------------------------
+  # Detect what changed so we only rebuild what we need
+  # --------------------------------------------------------------------
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'agent_os/**'
+              - 'pyproject.toml'
+            frontend:
+              - 'frontend/**'
+
+  # --------------------------------------------------------------------
+  # Build + deploy backend
+  # --------------------------------------------------------------------
+  backend:
+    needs: changes
+    if: |
+      github.event_name == 'workflow_dispatch' && (inputs.target == 'both' || inputs.target == 'backend') ||
+      github.event_name == 'push' && needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build & push backend image
+        run: |
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/backend"
+          docker build -f backend/Dockerfile -t "$IMAGE:${{ github.sha }}" -t "$IMAGE:latest" .
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:latest"
+
+      - id: deploy
+        name: Deploy backend to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.BACKEND_SERVICE }} \
+            --image=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/backend:${{ github.sha }} \
+            --region=${{ env.REGION }} \
+            --platform=managed \
+            --allow-unauthenticated \
+            --port=8080 \
+            --cpu=2 \
+            --memory=2Gi \
+            --timeout=300 \
+            --min-instances=0 \
+            --max-instances=10 \
+            --set-secrets=OPENAI_API_KEY=openai-api-key:latest,GOOGLE_API_KEY=google-api-key:latest \
+            --quiet
+          URL=$(gcloud run services describe ${{ env.BACKEND_SERVICE }} --region=${{ env.REGION }} --format='value(status.url)')
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Backend URL: $URL"
+
+  # --------------------------------------------------------------------
+  # Build + deploy frontend (NEXT_PUBLIC_API_URL baked from backend URL)
+  # --------------------------------------------------------------------
+  frontend:
+    needs: [changes, backend]
+    # Run if frontend changed OR if backend just redeployed (frontend bakes backend URL)
+    if: |
+      always() &&
+      (needs.backend.result == 'success' || needs.backend.result == 'skipped') &&
+      (
+        github.event_name == 'workflow_dispatch' && (inputs.target == 'both' || inputs.target == 'frontend') ||
+        github.event_name == 'push' && (needs.changes.outputs.frontend == 'true' || needs.changes.outputs.backend == 'true')
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Resolve backend URL
+        id: backend_url
+        run: |
+          if [ -n "${{ needs.backend.outputs.url }}" ]; then
+            URL="${{ needs.backend.outputs.url }}"
+          else
+            URL=$(gcloud run services describe ${{ env.BACKEND_SERVICE }} --region=${{ env.REGION }} --format='value(status.url)')
+          fi
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Resolved backend URL: $URL"
+
+      - name: Build & push frontend image
+        run: |
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/frontend"
+          docker build \
+            -f frontend/Dockerfile \
+            --build-arg NEXT_PUBLIC_API_URL="${{ steps.backend_url.outputs.url }}" \
+            -t "$IMAGE:${{ github.sha }}" \
+            -t "$IMAGE:latest" \
+            frontend
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:latest"
+
+      - name: Deploy frontend to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.FRONTEND_SERVICE }} \
+            --image=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/frontend:${{ github.sha }} \
+            --region=${{ env.REGION }} \
+            --platform=managed \
+            --allow-unauthenticated \
+            --port=8080 \
+            --cpu=1 \
+            --memory=512Mi \
+            --min-instances=0 \
+            --max-instances=5 \
+            --quiet
+          gcloud run services describe ${{ env.FRONTEND_SERVICE }} --region=${{ env.REGION }} --format='value(status.url)'

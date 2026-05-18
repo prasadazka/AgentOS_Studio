@@ -36,6 +36,10 @@ htmlcov/
 secrets/
 .gcp-credentials.json
 service-account*.json
+# GCP service-account key files (any name) — never commit
+agentos-*.json
+*-sa-key.json
+gcp-key*.json
 
 # --- Data / DB files (not part of the source) ---
 *.db
