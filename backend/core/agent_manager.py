@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Agent config directories
-USER_CONFIG_DIR = Path(os.path.expanduser("~/.agent_os/configs/agents"))
+USER_CONFIG_DIR = Path(os.getenv("AGENTOS_AGENT_CONFIGS_DIR", os.path.expanduser("~/.agent_os/configs/agents")))
 DEFAULT_AGENTS_DIR = None  # resolved lazily
 
 
