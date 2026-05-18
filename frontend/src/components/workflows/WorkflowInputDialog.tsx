@@ -57,6 +57,13 @@ export default function WorkflowInputDialog({ workflowId, workflowName, fields, 
     }
   };
 
+  // Backend-managed fields: always hidden and never required, regardless of
+  // what's saved in the workflow graph. (Older workflows created before these
+  // were auto-routed still have `output_path: required:true` in their graph;
+  // we override here so the UI matches the new behavior.)
+  const AUTO_MANAGED_FIELDS = new Set(["output_path"]);
+  const isAutoManaged = (f: WorkflowInputField) => f.hidden || AUTO_MANAGED_FIELDS.has(f.name);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -66,7 +73,7 @@ export default function WorkflowInputDialog({ workflowId, workflowName, fields, 
     // Validate required fields (only the ones visible to the user)
     const newErrors: Record<string, string> = {};
     for (const f of fields) {
-      if (f.hidden) continue;
+      if (isAutoManaged(f)) continue;
       if (f.required && !values[f.name]?.trim()) {
         newErrors[f.name] = `${f.label} is required`;
       }
@@ -80,8 +87,8 @@ export default function WorkflowInputDialog({ workflowId, workflowName, fields, 
     onSubmit(values);
   };
 
-  // Skip hidden fields from rendering (their values still submit via `values`)
-  const visibleFields = fields.filter((f) => !f.hidden);
+  // Skip hidden / auto-managed fields from rendering (their values still submit via `values`)
+  const visibleFields = fields.filter((f) => !isAutoManaged(f));
   // If no fields configured, show simple text input
   const hasFields = visibleFields.length > 0;
   const isAnyUploading = Object.values(fileUploading).some(Boolean);
