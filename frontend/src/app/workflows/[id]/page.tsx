@@ -419,6 +419,8 @@ export default function WorkflowEditorPage() {
               output={runOutput}
               error={runError}
               onClose={() => { setRunStatus(""); setNodeStatuses({}); }}
+              workflowId={wid}
+              runId={runIdRef.current}
             />
           )}
 

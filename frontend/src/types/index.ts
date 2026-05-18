@@ -127,6 +127,7 @@ export interface WorkflowInputField {
   defaultValue?: string;
   placeholder?: string;
   options?: string[]; // for select type
+  hidden?: boolean;   // skip rendering in Run dialog; value still submitted (typically blank → backend auto-fills)
 }
 
 export interface WorkflowNodeData {

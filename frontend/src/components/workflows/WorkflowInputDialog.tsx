@@ -63,9 +63,10 @@ export default function WorkflowInputDialog({ workflowId, workflowName, fields, 
     // Block submit if any file is still uploading
     if (Object.values(fileUploading).some(Boolean)) return;
 
-    // Validate required fields
+    // Validate required fields (only the ones visible to the user)
     const newErrors: Record<string, string> = {};
     for (const f of fields) {
+      if (f.hidden) continue;
       if (f.required && !values[f.name]?.trim()) {
         newErrors[f.name] = `${f.label} is required`;
       }
@@ -79,8 +80,10 @@ export default function WorkflowInputDialog({ workflowId, workflowName, fields, 
     onSubmit(values);
   };
 
+  // Skip hidden fields from rendering (their values still submit via `values`)
+  const visibleFields = fields.filter((f) => !f.hidden);
   // If no fields configured, show simple text input
-  const hasFields = fields.length > 0;
+  const hasFields = visibleFields.length > 0;
   const isAnyUploading = Object.values(fileUploading).some(Boolean);
 
   return (
@@ -105,7 +108,7 @@ export default function WorkflowInputDialog({ workflowId, workflowName, fields, 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {hasFields ? (
-            fields.map((field) => (
+            visibleFields.map((field) => (
               <div key={field.name}>
                 <label className="flex items-center gap-1 text-xs font-medium text-gray-700 mb-1">
                   {field.label}

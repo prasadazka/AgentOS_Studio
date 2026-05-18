@@ -97,7 +97,7 @@ jobs:
             --min-instances=0 \
             --max-instances=10 \
             --set-secrets=OPENAI_API_KEY=openai-api-key:latest,GOOGLE_API_KEY=google-api-key:latest,DATABASE_URL=database-url:latest \
-            --set-env-vars=AGENTOS_PROJECTS_DIR=/mnt/data/projects,AGENTOS_AGENT_UPLOADS_DIR=/mnt/data/agent_uploads,AGENTOS_AGENT_CONFIGS_DIR=/mnt/data/configs/agents \
+            --set-env-vars=AGENTOS_PROJECTS_DIR=/mnt/data/projects,AGENTOS_AGENT_UPLOADS_DIR=/mnt/data/agent_uploads,AGENTOS_AGENT_CONFIGS_DIR=/mnt/data/configs/agents,AGENTOS_WORKFLOW_UPLOADS_DIR=/mnt/data/workflow_uploads,AGENTOS_WORKFLOW_OUTPUTS_DIR=/mnt/data/workflow_outputs \
             --add-volume=name=studio-data,type=cloud-storage,bucket=${{ env.DATA_BUCKET }} \
             --add-volume-mount=volume=studio-data,mount-path=/mnt/data \
             --add-cloudsql-instances=${{ env.SQL_INSTANCE }} \

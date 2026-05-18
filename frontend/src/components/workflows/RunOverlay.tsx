@@ -1,9 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
-import { CheckCircle2, XCircle, Loader2, Clock, ChevronDown, ChevronRight, Copy, Check } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, Clock, ChevronDown, ChevronRight, Copy, Check, Download, FileText } from "lucide-react";
 import type { RunNodeState } from "@/types";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+
+interface RunFile { filename: string; relpath: string; file_size: number; modified_at: string; }
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 const STATUS_CONFIG: Record<string, { icon: typeof Clock; color: string; bg: string; label: string; animate?: boolean }> = {
   pending: { icon: Clock, color: "text-gray-400", bg: "bg-gray-50", label: "Pending" },
@@ -18,6 +28,8 @@ interface RunOverlayProps {
   output: string;
   error?: string;
   onClose: () => void;
+  workflowId?: string;
+  runId?: string;
 }
 
 function NodeOutputCard({ nodeId, state }: { nodeId: string; state: RunNodeState }) {
@@ -76,11 +88,27 @@ function NodeOutputCard({ nodeId, state }: { nodeId: string; state: RunNodeState
   );
 }
 
-export default function RunOverlay({ nodeStatuses, runStatus, output, error, onClose }: RunOverlayProps) {
+export default function RunOverlay({ nodeStatuses, runStatus, output, error, onClose, workflowId, runId }: RunOverlayProps) {
   const entries = Object.entries(nodeStatuses);
   const isFinished = runStatus === "completed" || runStatus === "error";
   const completedCount = entries.filter(([, s]) => s.status === "completed").length;
   const totalCount = entries.length;
+
+  const [runFiles, setRunFiles] = useState<RunFile[]>([]);
+  const [filesLoading, setFilesLoading] = useState(false);
+
+  // When the run completes, fetch generated files
+  useEffect(() => {
+    if (runStatus !== "completed" || !workflowId || !runId) return;
+    let cancelled = false;
+    setFilesLoading(true);
+    fetch(`${API_URL}/api/workflows/${workflowId}/runs/${runId}/files`)
+      .then((r) => r.ok ? r.json() : { files: [] })
+      .then((data) => { if (!cancelled) setRunFiles(data.files || []); })
+      .catch(() => { if (!cancelled) setRunFiles([]); })
+      .finally(() => { if (!cancelled) setFilesLoading(false); });
+    return () => { cancelled = true; };
+  }, [runStatus, workflowId, runId]);
 
   return (
     <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-[var(--border-light)] shadow-lg max-h-[60%] overflow-y-auto z-20">
@@ -129,6 +157,38 @@ export default function RunOverlay({ nodeStatuses, runStatus, output, error, onC
             <div className="text-xs text-gray-800 leading-relaxed overflow-y-auto prose prose-xs max-w-none prose-emerald prose-headings:text-emerald-800 prose-headings:text-sm prose-strong:text-gray-900 prose-li:my-0.5">
               <ReactMarkdown>{output}</ReactMarkdown>
             </div>
+          </div>
+        )}
+
+        {/* Generated files */}
+        {runStatus === "completed" && (filesLoading || runFiles.length > 0) && (
+          <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="text-[10px] font-semibold text-blue-600 mb-2 flex items-center gap-1.5">
+              <FileText className="w-3 h-3" />
+              GENERATED FILES {runFiles.length > 0 && `(${runFiles.length})`}
+            </div>
+            {filesLoading ? (
+              <div className="flex items-center gap-2 text-[11px] text-blue-500">
+                <Loader2 className="w-3 h-3 animate-spin" /> loading...
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {runFiles.map((f) => (
+                  <a
+                    key={f.relpath}
+                    href={`${API_URL}/api/workflows/${workflowId}/runs/${runId}/files/download/${encodeURIComponent(f.relpath)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-2 py-1.5 bg-white rounded border border-blue-100 hover:border-blue-300 hover:bg-blue-50/50 transition-colors group"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                    <span className="text-[11px] text-gray-700 flex-1 truncate font-mono">{f.relpath}</span>
+                    <span className="text-[10px] text-gray-400">{formatBytes(f.file_size)}</span>
+                    <Download className="w-3 h-3 text-gray-400 group-hover:text-blue-600 flex-shrink-0" />
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
