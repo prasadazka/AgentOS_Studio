@@ -1,4 +1,14 @@
-"""SQLite database for AgentOS Studio - projects, files, sessions, messages."""
+"""Database for AgentOS Studio.
+
+Two backends:
+- Postgres (production): if DATABASE_URL is set, use psycopg with a thin wrapper
+  that mimics the sqlite3.Connection / sqlite3.Row interface so the manager
+  modules keep working unchanged.
+- SQLite (local dev): default fallback when DATABASE_URL is unset.
+
+Schema is identical (TEXT/INTEGER, ON DELETE CASCADE, CREATE INDEX IF NOT EXISTS)
+and supported by both engines.
+"""
 
 import os
 import sqlite3
@@ -6,10 +16,13 @@ import threading
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional, Sequence
+
+_DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+_USE_POSTGRES = _DATABASE_URL.startswith(("postgres://", "postgresql://"))
 
 _DB_PATH = Path(os.path.expanduser("~/.agent_os/studio.db"))
-_local = threading.local()  # thread-local storage
+_local = threading.local()
 _init_done = False
 _init_lock = threading.Lock()
 
@@ -22,26 +35,111 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def get_db() -> sqlite3.Connection:
-    """Get a per-thread database connection. Each thread gets its own connection.
+# ---------------------------------------------------------------------------
+# Postgres compatibility shim — exposes the sqlite3 API the managers expect
+# ---------------------------------------------------------------------------
 
-    SQLite connections are NOT safe for concurrent use from multiple threads.
-    Using thread-local storage ensures each thread (main, workflow background,
-    HITL polling) gets its own connection — preventing SQLITE_MISUSE errors.
+class _PgCursor:
+    """Cursor wrapper: returns dict-like rows so row['name'] works."""
+
+    def __init__(self, real_cur):
+        self._cur = real_cur
+
+    def _row_to_dict(self, row):
+        if row is None:
+            return None
+        cols = [d[0] for d in self._cur.description]
+        return dict(zip(cols, row))
+
+    def fetchone(self):
+        return self._row_to_dict(self._cur.fetchone())
+
+    def fetchall(self):
+        cols = [d[0] for d in self._cur.description] if self._cur.description else []
+        return [dict(zip(cols, r)) for r in self._cur.fetchall()]
+
+    @property
+    def rowcount(self):
+        return self._cur.rowcount
+
+    @property
+    def lastrowid(self):
+        return None  # unused — this codebase generates UUIDs manually
+
+    def close(self):
+        self._cur.close()
+
+
+class _PgConnection:
+    """sqlite3.Connection-compatible wrapper around psycopg.
+
+    Translates `?` placeholders to `%s` so existing SQL works as-is.
+    The codebase contains no `?` characters inside string literals, so the
+    naive replace is safe (verified by audit).
     """
-    conn = getattr(_local, "conn", None)
-    if conn is not None:
-        return conn
 
+    def __init__(self, real_conn):
+        self._conn = real_conn
+
+    @staticmethod
+    def _adapt(sql: str) -> str:
+        return sql.replace("?", "%s")
+
+    def execute(self, sql: str, params: Sequence[Any] = ()):
+        cur = self._conn.cursor()
+        cur.execute(self._adapt(sql), params)
+        return _PgCursor(cur)
+
+    def executescript(self, script: str):
+        # psycopg can execute multi-statement strings directly
+        with self._conn.cursor() as cur:
+            cur.execute(self._adapt(script))
+
+    def commit(self):
+        self._conn.commit()
+
+    def rollback(self):
+        self._conn.rollback()
+
+    def close(self):
+        self._conn.close()
+
+
+def _connect_postgres():
+    """Open a psycopg connection. Uses DATABASE_URL.
+
+    For Cloud Run + Cloud SQL via Unix socket, the URL looks like:
+      postgresql://USER:PASS@/DBNAME?host=/cloudsql/PROJECT:REGION:INSTANCE
+    """
+    import psycopg  # imported lazily so SQLite-only local dev doesn't need it
+
+    conn = psycopg.connect(_DATABASE_URL, autocommit=False)
+    return _PgConnection(conn)
+
+
+def _connect_sqlite():
     _DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(_DB_PATH), check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
-    conn.execute("PRAGMA busy_timeout=5000")  # wait up to 5s if DB is locked
+    conn.execute("PRAGMA busy_timeout=5000")
+    return conn
+
+
+def get_db():
+    """Get a per-thread database connection.
+
+    Manager modules use the returned object as if it were a sqlite3.Connection.
+    With Postgres, the _PgConnection wrapper provides the same interface.
+    """
+    conn = getattr(_local, "conn", None)
+    if conn is not None:
+        return conn
+
+    conn = _connect_postgres() if _USE_POSTGRES else _connect_sqlite()
     _local.conn = conn
 
-    # Init tables once (first thread to arrive)
     global _init_done
     if not _init_done:
         with _init_lock:
@@ -52,7 +150,8 @@ def get_db() -> sqlite3.Connection:
     return conn
 
 
-def _init_tables(conn: sqlite3.Connection):
+def _init_tables(conn):
+    """Schema works on both SQLite and Postgres."""
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS projects (
             id TEXT PRIMARY KEY,
