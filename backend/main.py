@@ -588,7 +588,7 @@ def delete_file_by_name(pid: str, filename: str):
     project = project_manager.get_project(pid)
     if not project:
         raise HTTPException(404, "Project not found")
-    project_dir = Path(os.path.expanduser(f"~/.agent_os/projects/{pid}/files"))
+    project_dir = project_manager.PROJECTS_DIR / pid / "files"
     target = project_dir / filename
     if not target.exists() or not str(target.resolve()).startswith(str(project_dir.resolve())):
         raise HTTPException(404, "File not found")
@@ -691,7 +691,7 @@ def project_chat_stream(pid: str, req: ProjectChatRequest):
         try:
             # Get project memory and instantiate agent with it
             memory = get_project_memory(pid)
-            pf_dir = str(Path(os.path.expanduser(f"~/.agent_os/projects/{pid}/files")))
+            pf_dir = str(project_manager.PROJECTS_DIR / pid / "files")
             agent = agent_manager.instantiate_agent_with_memory(agent_name, memory, project_files_dir=pf_dir)
 
             # Build memory-augmented messages
@@ -712,7 +712,7 @@ def project_chat_stream(pid: str, req: ProjectChatRequest):
             context_parts = []
 
             # Tell the agent where to save/export files so the UI can find them
-            project_files_dir = Path(os.path.expanduser(f"~/.agent_os/projects/{pid}/files"))
+            project_files_dir = project_manager.PROJECTS_DIR / pid / "files"
             project_files_dir.mkdir(parents=True, exist_ok=True)
             context_parts.append(
                 f"OUTPUT DIRECTORY (ALWAYS save/export files here so they appear in the UI):\n{project_files_dir}"
