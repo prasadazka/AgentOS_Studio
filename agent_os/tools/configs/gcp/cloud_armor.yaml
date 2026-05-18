@@ -1,0 +1,150 @@
+# Cloud Armor - Web Application Firewall (WAF)
+name: cloud_armor
+description: "Create security policies to protect against DDoS, SQL injection, XSS, and other attacks"
+category: gcp_security
+version: "1.0.0"
+
+command:
+  base: "gcloud compute security-policies"
+  flags:
+    project_id: "--project"
+    description: "--description"
+    type: "--type"
+
+parameters:
+  - name: action
+    type: enum
+    required: true
+    enum_values:
+      - "create"           # Create security policy
+      - "delete"           # Delete policy
+      - "describe"         # Get policy details
+      - "list"             # List policies
+      - "add_rule"         # Add rule to policy
+      - "remove_rule"      # Remove rule
+      - "list_rules"       # List rules in policy
+      - "update_rule"      # Update existing rule
+    description: "Operation to perform"
+
+  - name: policy_name
+    type: string
+    required: true
+    pattern: "^[a-z][a-z0-9-]{0,62}$"
+    description: "Security policy name"
+
+  - name: project_id
+    type: string
+    required: true
+    description: "GCP project ID"
+
+  - name: policy_type
+    type: enum
+    default: "CLOUD_ARMOR"
+    enum_values:
+      - "CLOUD_ARMOR"           # Standard WAF
+      - "CLOUD_ARMOR_EDGE"      # Edge security (with CDN)
+      - "CLOUD_ARMOR_NETWORK"   # Network DDoS protection
+    description: "Policy type"
+
+  - name: rule_action
+    type: enum
+    enum_values:
+      - "allow"
+      - "deny(403)"
+      - "deny(404)"
+      - "deny(502)"
+      - "rate_based_ban"
+      - "redirect"
+      - "throttle"
+    description: "Action when rule matches"
+
+  - name: rule_priority
+    type: integer
+    default: 1000
+    min_value: 0
+    max_value: 2147483647
+    description: "Rule priority (lower = higher priority)"
+
+  - name: rule_expression
+    type: string
+    description: "CEL expression for rule matching"
+
+  - name: preconfigured_waf_rule
+    type: enum
+    enum_values:
+      - "sqli-v33-stable"           # SQL injection
+      - "xss-v33-stable"            # Cross-site scripting
+      - "lfi-v33-stable"            # Local file inclusion
+      - "rfi-v33-stable"            # Remote file inclusion
+      - "rce-v33-stable"            # Remote code execution
+      - "methodenforcement-v33-stable"  # Method enforcement
+      - "scannerdetection-v33-stable"   # Scanner detection
+      - "protocolattack-v33-stable"     # Protocol attacks
+      - "php-v33-stable"            # PHP attacks
+      - "sessionfixation-v33-stable"    # Session fixation
+      - "java-v33-stable"           # Java attacks
+      - "nodejs-v33-stable"         # Node.js attacks
+      - "cve-canary"                # Latest CVE rules
+    description: "Pre-configured OWASP WAF rule"
+
+  - name: rate_limit_threshold
+    type: integer
+    min_value: 1
+    description: "Requests per interval for rate limiting"
+
+  - name: rate_limit_interval
+    type: integer
+    default: 60
+    description: "Interval in seconds for rate limiting"
+
+timeout_seconds: 60
+requires_project: true
+output_format: json
+
+examples:
+  - description: "Create basic WAF policy"
+    params:
+      action: "create"
+      policy_name: "myapp-waf"
+      policy_type: "CLOUD_ARMOR"
+
+  - description: "Add SQL injection protection"
+    params:
+      action: "add_rule"
+      policy_name: "myapp-waf"
+      rule_priority: 1000
+      rule_action: "deny(403)"
+      preconfigured_waf_rule: "sqli-v33-stable"
+
+  - description: "Add XSS protection"
+    params:
+      action: "add_rule"
+      policy_name: "myapp-waf"
+      rule_priority: 1001
+      rule_action: "deny(403)"
+      preconfigured_waf_rule: "xss-v33-stable"
+
+  - description: "Rate limit by IP (100 req/min)"
+    params:
+      action: "add_rule"
+      policy_name: "myapp-waf"
+      rule_priority: 2000
+      rule_action: "rate_based_ban"
+      rate_limit_threshold: 100
+      rate_limit_interval: 60
+
+  - description: "Block specific country"
+    params:
+      action: "add_rule"
+      policy_name: "myapp-waf"
+      rule_priority: 500
+      rule_action: "deny(403)"
+      rule_expression: "origin.region_code == 'XX'"
+
+related_tools:
+  - load_balancer
+  - cloud_cdn
+  - cloud_run
+
+pricing_url: "https://cloud.google.com/armor/pricing"
+estimated_cost: "$5/policy/month + $0.75/million requests"

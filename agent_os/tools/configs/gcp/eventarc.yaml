@@ -1,0 +1,155 @@
+# Eventarc - Event Routing
+name: eventarc
+description: "Route events from GCP services, Pub/Sub, and webhooks to Cloud Run/Functions"
+category: gcp_integration
+version: "1.0.0"
+
+command:
+  base: "gcloud eventarc triggers"
+  flags:
+    project_id: "--project"
+    location: "--location"
+    destination_run_service: "--destination-run-service"
+    destination_run_region: "--destination-run-region"
+    event_filters: "--event-filters"
+    service_account: "--service-account"
+
+parameters:
+  - name: action
+    type: enum
+    required: true
+    enum_values:
+      - "create"        # Create trigger
+      - "delete"        # Delete trigger
+      - "describe"      # Get trigger details
+      - "list"          # List triggers
+      - "update"        # Update trigger
+    description: "Operation to perform"
+
+  - name: trigger_name
+    type: string
+    required: true
+    pattern: "^[a-z][a-z0-9-]{0,62}$"
+    description: "Trigger name"
+
+  - name: project_id
+    type: string
+    required: true
+    description: "GCP project ID"
+
+  - name: location
+    type: string
+    default: "us-central1"
+    description: "Trigger location"
+
+  - name: destination_service
+    type: string
+    required: true
+    description: "Cloud Run service to receive events"
+
+  - name: destination_region
+    type: string
+    description: "Cloud Run service region (if different)"
+
+  - name: destination_path
+    type: string
+    default: "/"
+    description: "HTTP path on destination service"
+
+  - name: event_type
+    type: enum
+    required: true
+    enum_values:
+      # Cloud Storage events
+      - "google.cloud.storage.object.v1.finalized"
+      - "google.cloud.storage.object.v1.deleted"
+      - "google.cloud.storage.object.v1.archived"
+      - "google.cloud.storage.object.v1.metadataUpdated"
+      # Firestore events
+      - "google.cloud.firestore.document.v1.created"
+      - "google.cloud.firestore.document.v1.updated"
+      - "google.cloud.firestore.document.v1.deleted"
+      - "google.cloud.firestore.document.v1.written"
+      # Pub/Sub
+      - "google.cloud.pubsub.topic.v1.messagePublished"
+      # Cloud Audit Logs
+      - "google.cloud.audit.log.v1.written"
+      # BigQuery
+      - "google.cloud.bigquery.job.v1.completed"
+      # Workflows
+      - "google.cloud.workflows.execution.v1.completed"
+      # Custom/webhook
+      - "custom"
+    description: "Event type to trigger on"
+
+  - name: bucket
+    type: string
+    description: "GCS bucket (for storage events)"
+
+  - name: database
+    type: string
+    description: "Firestore database (for firestore events)"
+
+  - name: document_path
+    type: string
+    description: "Firestore document path pattern"
+
+  - name: pubsub_topic
+    type: string
+    description: "Pub/Sub topic (for pubsub events)"
+
+  - name: service_account
+    type: string
+    description: "Service account for trigger"
+
+  - name: channel
+    type: string
+    description: "Eventarc channel (for cross-project events)"
+
+timeout_seconds: 120
+requires_project: true
+output_format: json
+
+# Service connections
+connects_to:
+  - cloud_run: "Event destination"
+  - cloud_functions: "Event destination"
+  - cloud_storage: "Storage event source"
+  - firestore: "Document event source"
+  - pubsub: "Message event source"
+  - bigquery: "Job completion events"
+
+examples:
+  - description: "Trigger on file upload to GCS"
+    params:
+      action: "create"
+      trigger_name: "process-uploads"
+      destination_service: "file-processor"
+      event_type: "google.cloud.storage.object.v1.finalized"
+      bucket: "myapp-uploads"
+
+  - description: "Trigger on Firestore document create"
+    params:
+      action: "create"
+      trigger_name: "new-user-handler"
+      destination_service: "user-processor"
+      event_type: "google.cloud.firestore.document.v1.created"
+      document_path: "users/{userId}"
+
+  - description: "Trigger on Pub/Sub message"
+    params:
+      action: "create"
+      trigger_name: "order-processor"
+      destination_service: "order-handler"
+      event_type: "google.cloud.pubsub.topic.v1.messagePublished"
+      pubsub_topic: "new-orders"
+
+related_tools:
+  - cloud_run
+  - cloud_functions
+  - cloud_storage
+  - firestore
+  - pubsub
+
+pricing_url: "https://cloud.google.com/eventarc/pricing"
+estimated_cost: "$0.40/million events"

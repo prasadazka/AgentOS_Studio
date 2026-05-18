@@ -1,0 +1,135 @@
+# Cloud Monitoring - Metrics, Alerts, and Dashboards
+name: cloud_monitoring
+description: "Create uptime checks, alerting policies, and notification channels"
+category: gcp_observability
+version: "1.0.0"
+
+command:
+  base: "gcloud monitoring"
+  flags:
+    project_id: "--project"
+
+parameters:
+  - name: action
+    type: enum
+    required: true
+    enum_values:
+      - "create_uptime_check"      # HTTP/HTTPS uptime check
+      - "delete_uptime_check"      # Delete check
+      - "list_uptime_checks"       # List checks
+      - "create_notification"      # Create notification channel
+      - "list_notifications"       # List channels
+      - "create_alert"             # Create alerting policy
+      - "list_alerts"              # List policies
+      - "delete_alert"             # Delete policy
+    description: "Operation to perform"
+
+  - name: project_id
+    type: string
+    required: true
+    description: "GCP project ID"
+
+  - name: check_name
+    type: string
+    description: "Uptime check display name"
+
+  - name: check_url
+    type: string
+    description: "URL to monitor"
+
+  - name: check_period
+    type: enum
+    default: "60s"
+    enum_values: ["60s", "300s", "600s", "900s"]
+    description: "Check interval"
+
+  - name: check_timeout
+    type: string
+    default: "10s"
+    description: "Request timeout"
+
+  - name: check_regions
+    type: list
+    description: "Regions to check from (default: all)"
+
+  - name: notification_type
+    type: enum
+    enum_values:
+      - "email"
+      - "slack"
+      - "pagerduty"
+      - "webhook"
+      - "sms"
+    description: "Notification channel type"
+
+  - name: notification_email
+    type: string
+    description: "Email for notifications"
+
+  - name: notification_webhook
+    type: string
+    description: "Webhook URL for notifications"
+
+  - name: alert_name
+    type: string
+    description: "Alert policy name"
+
+  - name: alert_metric
+    type: string
+    description: "Metric to monitor (e.g., run.googleapis.com/request_latencies)"
+
+  - name: alert_threshold
+    type: float
+    description: "Threshold value for alert"
+
+  - name: alert_comparison
+    type: enum
+    enum_values: ["GREATER_THAN", "LESS_THAN", "EQUAL"]
+    description: "Comparison type"
+
+  - name: alert_duration
+    type: string
+    default: "300s"
+    description: "Duration threshold must be met"
+
+timeout_seconds: 60
+requires_project: true
+output_format: json
+
+examples:
+  - description: "Create uptime check for API"
+    params:
+      action: "create_uptime_check"
+      check_name: "API Health Check"
+      check_url: "https://myapp-prod-xxx.run.app/health"
+      check_period: "60s"
+      check_timeout: "10s"
+
+  - description: "Create email notification channel"
+    params:
+      action: "create_notification"
+      notification_type: "email"
+      notification_email: "alerts@mycompany.com"
+
+  - description: "Create Slack notification"
+    params:
+      action: "create_notification"
+      notification_type: "slack"
+      notification_webhook: "https://hooks.slack.com/services/xxx/yyy/zzz"
+
+  - description: "Create high latency alert"
+    params:
+      action: "create_alert"
+      alert_name: "High API Latency"
+      alert_metric: "run.googleapis.com/request_latencies"
+      alert_threshold: 2000
+      alert_comparison: "GREATER_THAN"
+      alert_duration: "300s"
+
+related_tools:
+  - cloud_logging
+  - cloud_run
+  - cloud_functions
+
+pricing_url: "https://cloud.google.com/monitoring/pricing"
+estimated_cost: "Free tier includes 10 uptime checks, $0.01/metric after"

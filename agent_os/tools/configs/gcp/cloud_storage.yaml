@@ -1,0 +1,104 @@
+# Cloud Storage - Object Storage
+name: cloud_storage
+description: "Create and manage Cloud Storage buckets"
+category: gcp_storage
+version: "1.0.0"
+
+command:
+  base: "gcloud storage buckets"
+  flags:
+    project_id: "--project"
+    location: "--location"
+    storage_class: "--default-storage-class"
+    uniform_access: "--uniform-bucket-level-access"
+    versioning: "--versioning"
+
+parameters:
+  - name: action
+    type: enum
+    required: true
+    enum_values:
+      - "create"
+      - "delete"
+      - "describe"
+      - "list"
+      - "update"
+    description: "Operation to perform"
+
+  - name: bucket_name
+    type: string
+    required: true
+    pattern: "^[a-z0-9][a-z0-9._-]{1,61}[a-z0-9]$"
+    description: "Globally unique bucket name"
+
+  - name: project_id
+    type: string
+    required: true
+    description: "GCP project ID"
+
+  - name: location
+    type: string
+    default: "US"
+    description: "Bucket location (US, EU, ASIA, or specific region)"
+
+  - name: storage_class
+    type: enum
+    default: "STANDARD"
+    enum_values:
+      - "STANDARD"       # Frequent access - $0.020/GB
+      - "NEARLINE"       # Monthly access - $0.010/GB
+      - "COLDLINE"       # Quarterly access - $0.004/GB
+      - "ARCHIVE"        # Yearly access - $0.0012/GB
+    description: "Storage class affects cost and access patterns"
+
+  - name: uniform_access
+    type: boolean
+    default: true
+    description: "Use uniform bucket-level access (recommended)"
+
+  - name: versioning
+    type: boolean
+    default: false
+    description: "Enable object versioning"
+
+  - name: lifecycle_delete_days
+    type: integer
+    min_value: 1
+    description: "Auto-delete objects after N days"
+
+  - name: public_access
+    type: boolean
+    default: false
+    description: "Allow public access (use with caution)"
+
+timeout_seconds: 60
+requires_project: true
+output_format: json
+
+success_patterns:
+  - "Creating"
+  - "Created"
+  - "already exists"
+
+examples:
+  - description: "Create standard bucket"
+    params:
+      action: "create"
+      bucket_name: "myapp-uploads-dev"
+      location: "US"
+      storage_class: "STANDARD"
+
+  - description: "Create archive bucket for backups"
+    params:
+      action: "create"
+      bucket_name: "myapp-backups"
+      location: "US"
+      storage_class: "ARCHIVE"
+      lifecycle_delete_days: 365
+
+related_tools:
+  - cloud_cdn
+  - cloud_functions
+
+pricing_url: "https://cloud.google.com/storage/pricing"
+estimated_cost: "$0.02-$0.0012/GB depending on class"

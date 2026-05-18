@@ -1,0 +1,107 @@
+# Cloud Build pipeline:
+#   1. Build & push backend image (uses repo root as context so agent_os/ is included)
+#   2. Build & push frontend image (frontend/ as context)
+#   3. Deploy both to Cloud Run
+#
+# Required substitutions (defaults provided where reasonable):
+#   _REGION           e.g. us-central1
+#   _AR_REPO          Artifact Registry repo name, e.g. agentos
+#   _BACKEND_SERVICE  Cloud Run service name for backend, e.g. agentos-backend
+#   _FRONTEND_SERVICE Cloud Run service name for frontend, e.g. agentos-frontend
+#   _BACKEND_URL      Public URL of the backend, baked into the frontend at build time
+#
+# Required secrets in Secret Manager (mounted at deploy):
+#   openai-api-key, google-api-key
+
+substitutions:
+  _REGION: us-central1
+  _AR_REPO: agentos
+  _BACKEND_SERVICE: agentos-backend
+  _FRONTEND_SERVICE: agentos-frontend
+  _BACKEND_URL: ""
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+images:
+  - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/backend:${SHORT_SHA}"
+  - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/backend:latest"
+  - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/frontend:${SHORT_SHA}"
+  - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/frontend:latest"
+
+steps:
+  # ---------- backend ----------
+  - id: backend-build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - backend/Dockerfile
+      - -t
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/backend:${SHORT_SHA}"
+      - -t
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/backend:latest"
+      - .
+
+  - id: backend-push
+    name: gcr.io/cloud-builders/docker
+    args: [push, --all-tags, "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/backend"]
+    waitFor: [backend-build]
+
+  - id: backend-deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_BACKEND_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/backend:${SHORT_SHA}
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --port=8080
+      - --cpu=2
+      - --memory=2Gi
+      - --timeout=300
+      - --set-secrets=OPENAI_API_KEY=openai-api-key:latest,GOOGLE_API_KEY=google-api-key:latest
+    waitFor: [backend-push]
+
+  # ---------- frontend ----------
+  # NEXT_PUBLIC_API_URL is baked in at build time. Provide _BACKEND_URL or
+  # run a second build after the backend's URL is known.
+  - id: frontend-build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - frontend/Dockerfile
+      - --build-arg
+      - NEXT_PUBLIC_API_URL=${_BACKEND_URL}
+      - -t
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/frontend:${SHORT_SHA}"
+      - -t
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/frontend:latest"
+      - frontend
+    waitFor: [backend-deploy]
+
+  - id: frontend-push
+    name: gcr.io/cloud-builders/docker
+    args: [push, --all-tags, "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/frontend"]
+    waitFor: [frontend-build]
+
+  - id: frontend-deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_FRONTEND_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/frontend:${SHORT_SHA}
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --port=8080
+      - --cpu=1
+      - --memory=512Mi
+    waitFor: [frontend-push]

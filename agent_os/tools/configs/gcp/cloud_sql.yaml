@@ -1,0 +1,128 @@
+# Cloud SQL - Managed PostgreSQL/MySQL/SQL Server
+name: cloud_sql
+description: "Create and manage Cloud SQL database instances"
+category: gcp_database
+version: "1.0.0"
+
+command:
+  base: "gcloud sql instances"
+  flags:
+    project_id: "--project"
+    database_version: "--database-version"
+    tier: "--tier"
+    region: "--region"
+    storage_size: "--storage-size"
+    storage_type: "--storage-type"
+  optional_flags:
+    high_availability: "--availability-type"
+    backup_enabled: "--backup"
+    maintenance_window_day: "--maintenance-window-day"
+    maintenance_window_hour: "--maintenance-window-hour"
+
+parameters:
+  - name: action
+    type: enum
+    required: true
+    enum_values: ["create", "delete", "describe", "list", "restart"]
+    description: "Operation to perform"
+
+  - name: instance_name
+    type: string
+    required: true
+    pattern: "^[a-z][a-z0-9-]{0,62}$"
+    description: "SQL instance name (lowercase, alphanumeric, hyphens)"
+
+  - name: project_id
+    type: string
+    required: true
+    description: "GCP project ID"
+
+  - name: database_version
+    type: enum
+    default: "POSTGRES_15"
+    enum_values:
+      - "POSTGRES_15"
+      - "POSTGRES_14"
+      - "POSTGRES_13"
+      - "MYSQL_8_0"
+      - "MYSQL_5_7"
+      - "SQLSERVER_2019_STANDARD"
+    description: "Database engine and version"
+
+  - name: tier
+    type: enum
+    default: "db-f1-micro"
+    enum_values:
+      - "db-f1-micro"      # 0.6 GB RAM - $7/mo
+      - "db-g1-small"      # 1.7 GB RAM - $25/mo
+      - "db-n1-standard-1" # 3.75 GB RAM - $50/mo
+      - "db-n1-standard-2" # 7.5 GB RAM - $100/mo
+      - "db-n1-standard-4" # 15 GB RAM - $200/mo
+    description: "Machine type (affects RAM and CPU)"
+
+  - name: region
+    type: string
+    default: "us-central1"
+    description: "GCP region"
+
+  - name: storage_size
+    type: string
+    default: "10GB"
+    description: "Storage size (10GB to 64TB)"
+
+  - name: storage_type
+    type: enum
+    default: "SSD"
+    enum_values: ["SSD", "HDD"]
+    description: "Storage type"
+
+  - name: high_availability
+    type: enum
+    enum_values: ["REGIONAL", "ZONAL"]
+    description: "REGIONAL for HA (2x cost), ZONAL for single zone"
+
+  - name: backup_enabled
+    type: boolean
+    default: true
+    description: "Enable automated backups"
+
+timeout_seconds: 600
+requires_project: true
+requires_region: true
+output_format: json
+
+success_patterns:
+  - "Created"
+  - "already exists"
+  - "instance"
+
+error_patterns:
+  - "ERROR"
+  - "PERMISSION_DENIED"
+  - "already exists"
+
+examples:
+  - description: "Create dev database"
+    params:
+      action: "create"
+      instance_name: "myapp-db-dev"
+      database_version: "POSTGRES_15"
+      tier: "db-f1-micro"
+      region: "us-central1"
+
+  - description: "Create production database with HA"
+    params:
+      action: "create"
+      instance_name: "myapp-db-prod"
+      database_version: "POSTGRES_15"
+      tier: "db-n1-standard-2"
+      high_availability: "REGIONAL"
+      backup_enabled: true
+
+related_tools:
+  - cloud_sql_database
+  - cloud_sql_user
+  - cloud_sql_backup
+
+pricing_url: "https://cloud.google.com/sql/pricing"
+estimated_cost: "$7-$500/month depending on tier"

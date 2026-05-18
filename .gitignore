@@ -1,0 +1,108 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+build/
+dist/
+.eggs/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# --- Virtual environments ---
+.venv/
+venv/
+ENV/
+env/
+agent_os/venv/
+
+# --- Test / coverage ---
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# --- Secrets & env ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+.gcp-credentials.json
+service-account*.json
+
+# --- Data / DB files (not part of the source) ---
+*.db
+*.sqlite
+*.sqlite3
+*.duckdb
+backend/db/*.db
+backend/*.db
+backend/*.csv
+backend/*.json
+!backend/architecture_summary.json
+backend/*.txt
+!backend/requirements.txt
+backend/gwdb_cleaned_export.*
+backend/gwdb_output.*
+backend/output.db
+backend/merged_output.csv
+data/
+demo_data/
+chroma_db/
+faiss_db/
+uploads/
+
+# --- Node / Next.js ---
+node_modules/
+.next/
+out/
+.npm/
+.pnpm-store/
+.yarn/
+*.tsbuildinfo
+next-env.d.ts
+
+# --- IDE / editors ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+nul
+
+# --- Logs ---
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Claude / agent state ---
+.claude/
+agent_os/cli/.agent_session.json
+report.txt
+NEXT.txt
+
+# --- Local config user dirs ---
+configs/agents/
+~/.agent_os/
+
+# --- Misc generated / large binaries ---
+*.zip
+*.tar.gz
+*.pptx
+backend.png
+patients_raw.csv
+
+# --- Internal / strategy docs (do not publish) ---
+claude.md
+CLAUDE.md

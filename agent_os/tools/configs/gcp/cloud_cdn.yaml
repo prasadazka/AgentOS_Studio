@@ -1,0 +1,114 @@
+# Cloud CDN - Content Delivery Network
+name: cloud_cdn
+description: "Enable CDN caching for Cloud Storage buckets and Load Balancers"
+category: gcp_networking
+version: "1.0.0"
+
+command:
+  base: "gcloud compute backend-buckets"
+  flags:
+    project_id: "--project"
+    gcs_bucket_name: "--gcs-bucket-name"
+    enable_cdn: "--enable-cdn"
+    cache_mode: "--cache-mode"
+    default_ttl: "--default-ttl"
+    max_ttl: "--max-ttl"
+    client_ttl: "--client-ttl"
+    signed_url_cache_max_age: "--signed-url-cache-max-age"
+
+parameters:
+  - name: action
+    type: enum
+    required: true
+    enum_values:
+      - "create"     # Create backend bucket with CDN
+      - "update"     # Update CDN settings
+      - "delete"     # Delete backend bucket
+      - "describe"   # Get details
+      - "list"       # List backend buckets
+    description: "Operation to perform"
+
+  - name: backend_bucket_name
+    type: string
+    required: true
+    pattern: "^[a-z][a-z0-9-]{0,62}$"
+    description: "Backend bucket name"
+
+  - name: gcs_bucket_name
+    type: string
+    required: true
+    description: "Cloud Storage bucket to cache"
+
+  - name: project_id
+    type: string
+    required: true
+    description: "GCP project ID"
+
+  - name: enable_cdn
+    type: boolean
+    default: true
+    description: "Enable Cloud CDN"
+
+  - name: cache_mode
+    type: enum
+    default: "CACHE_ALL_STATIC"
+    enum_values:
+      - "CACHE_ALL_STATIC"     # Cache static content automatically
+      - "USE_ORIGIN_HEADERS"   # Respect origin Cache-Control headers
+      - "FORCE_CACHE_ALL"      # Cache everything
+    description: "Caching behavior"
+
+  - name: default_ttl
+    type: integer
+    default: 3600
+    min_value: 0
+    max_value: 31622400
+    description: "Default TTL in seconds (1 hour default)"
+
+  - name: max_ttl
+    type: integer
+    default: 86400
+    min_value: 0
+    max_value: 31622400
+    description: "Maximum TTL in seconds (1 day default)"
+
+  - name: client_ttl
+    type: integer
+    default: 3600
+    description: "Client-side TTL in seconds"
+
+  - name: negative_caching
+    type: boolean
+    default: true
+    description: "Cache 404/410 responses"
+
+timeout_seconds: 120
+requires_project: true
+output_format: json
+
+examples:
+  - description: "Enable CDN for static assets bucket"
+    params:
+      action: "create"
+      backend_bucket_name: "myapp-static-cdn"
+      gcs_bucket_name: "myapp-static-assets"
+      enable_cdn: true
+      cache_mode: "CACHE_ALL_STATIC"
+      default_ttl: 3600
+
+  - description: "CDN with long cache for images"
+    params:
+      action: "create"
+      backend_bucket_name: "myapp-images-cdn"
+      gcs_bucket_name: "myapp-images"
+      cache_mode: "FORCE_CACHE_ALL"
+      default_ttl: 604800
+      max_ttl: 2592000
+
+related_tools:
+  - cloud_storage
+  - load_balancer
+  - cloud_armor
+
+pricing_url: "https://cloud.google.com/cdn/pricing"
+estimated_cost: "$0.02-$0.08/GB egress (varies by region)"

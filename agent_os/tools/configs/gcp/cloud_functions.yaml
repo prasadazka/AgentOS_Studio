@@ -1,0 +1,141 @@
+# Cloud Functions - Serverless Functions (Gen 2)
+name: cloud_functions
+description: "Deploy serverless functions triggered by HTTP, Pub/Sub, or events"
+category: gcp_compute
+version: "1.0.0"
+
+command:
+  base: "gcloud functions"
+  flags:
+    project_id: "--project"
+    region: "--region"
+    runtime: "--runtime"
+    entry_point: "--entry-point"
+    trigger_http: "--trigger-http"
+    trigger_topic: "--trigger-topic"
+    memory: "--memory"
+    timeout: "--timeout"
+    min_instances: "--min-instances"
+    max_instances: "--max-instances"
+    service_account: "--service-account"
+    env_vars: "--set-env-vars"
+    vpc_connector: "--vpc-connector"
+
+parameters:
+  - name: action
+    type: enum
+    required: true
+    enum_values: ["deploy", "delete", "describe", "list", "call", "logs"]
+    description: "Operation to perform"
+
+  - name: function_name
+    type: string
+    required: true
+    pattern: "^[a-z][a-z0-9-]{0,62}$"
+    description: "Function name"
+
+  - name: project_id
+    type: string
+    required: true
+    description: "GCP project ID"
+
+  - name: region
+    type: string
+    default: "us-central1"
+    description: "GCP region"
+
+  - name: runtime
+    type: enum
+    default: "python311"
+    enum_values:
+      - "python311"
+      - "python310"
+      - "python39"
+      - "nodejs20"
+      - "nodejs18"
+      - "go121"
+      - "go120"
+      - "java17"
+      - "java11"
+      - "dotnet6"
+      - "ruby32"
+    description: "Runtime environment"
+
+  - name: entry_point
+    type: string
+    default: "main"
+    description: "Function entry point (function name in code)"
+
+  - name: trigger_http
+    type: boolean
+    default: true
+    description: "HTTP trigger (creates HTTPS endpoint)"
+
+  - name: trigger_topic
+    type: string
+    description: "Pub/Sub topic to trigger on"
+
+  - name: memory
+    type: enum
+    default: "256MB"
+    enum_values: ["128MB", "256MB", "512MB", "1GB", "2GB", "4GB", "8GB"]
+    description: "Memory allocation"
+
+  - name: timeout
+    type: string
+    default: "60s"
+    description: "Function timeout (max 540s for HTTP, 600s for events)"
+
+  - name: min_instances
+    type: integer
+    default: 0
+    min_value: 0
+    max_value: 100
+    description: "Minimum instances (0 = scale to zero)"
+
+  - name: max_instances
+    type: integer
+    default: 100
+    min_value: 1
+    max_value: 1000
+    description: "Maximum instances"
+
+  - name: allow_unauthenticated
+    type: boolean
+    default: false
+    description: "Allow public access without authentication"
+
+  - name: vpc_connector
+    type: string
+    description: "VPC connector for private network access"
+
+timeout_seconds: 300
+requires_project: true
+requires_region: true
+output_format: json
+
+examples:
+  - description: "Deploy HTTP function"
+    params:
+      action: "deploy"
+      function_name: "api-handler"
+      runtime: "python311"
+      entry_point: "handle_request"
+      trigger_http: true
+      allow_unauthenticated: true
+
+  - description: "Deploy Pub/Sub triggered function"
+    params:
+      action: "deploy"
+      function_name: "process-events"
+      runtime: "python311"
+      trigger_topic: "user-events"
+      memory: "512MB"
+
+related_tools:
+  - pubsub
+  - cloud_scheduler
+  - eventarc
+
+pricing_url: "https://cloud.google.com/functions/pricing"
+estimated_cost: "$0.40/million invocations + compute time"

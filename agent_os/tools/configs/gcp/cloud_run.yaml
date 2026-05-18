@@ -1,0 +1,265 @@
+# Cloud Run - Serverless Containers (CORE SERVICE)
+name: cloud_run
+description: "Deploy and manage containerized applications with automatic scaling"
+category: gcp_compute
+version: "1.0.0"
+
+command:
+  base: "gcloud run"
+  flags:
+    project_id: "--project"
+    region: "--region"
+    image: "--image"
+    port: "--port"
+    memory: "--memory"
+    cpu: "--cpu"
+    min_instances: "--min-instances"
+    max_instances: "--max-instances"
+    concurrency: "--concurrency"
+    timeout: "--timeout"
+    service_account: "--service-account"
+    vpc_connector: "--vpc-connector"
+    vpc_egress: "--vpc-egress"
+    ingress: "--ingress"
+    cpu_boost: "--cpu-boost"
+    execution_environment: "--execution-environment"
+    set_env_vars: "--set-env-vars"
+    set_secrets: "--set-secrets"
+    set_cloudsql_instances: "--set-cloudsql-instances"
+
+parameters:
+  - name: action
+    type: enum
+    required: true
+    enum_values:
+      - "deploy"            # Deploy new revision
+      - "delete"            # Delete service
+      - "describe"          # Get service details
+      - "list"              # List services
+      - "update"            # Update service config
+      - "update_traffic"    # Split traffic between revisions
+      - "revisions_list"    # List revisions
+      - "logs"              # View logs
+      - "set_iam_policy"    # Set IAM (public/private)
+    description: "Operation to perform"
+
+  - name: service_name
+    type: string
+    required: true
+    pattern: "^[a-z][a-z0-9-]{0,48}$"
+    description: "Service name"
+
+  - name: project_id
+    type: string
+    required: true
+    description: "GCP project ID"
+
+  - name: region
+    type: string
+    default: "us-central1"
+    description: "GCP region"
+
+  - name: image
+    type: string
+    description: "Container image URL"
+
+  - name: port
+    type: integer
+    default: 8080
+    min_value: 1
+    max_value: 65535
+    description: "Container port"
+
+  - name: memory
+    type: enum
+    default: "512Mi"
+    enum_values:
+      - "128Mi"
+      - "256Mi"
+      - "512Mi"
+      - "1Gi"
+      - "2Gi"
+      - "4Gi"
+      - "8Gi"
+      - "16Gi"
+      - "32Gi"
+    description: "Memory limit"
+
+  - name: cpu
+    type: enum
+    default: "1"
+    enum_values: ["1", "2", "4", "6", "8"]
+    description: "CPU limit"
+
+  - name: min_instances
+    type: integer
+    default: 0
+    min_value: 0
+    max_value: 100
+    description: "Min instances (0 = scale to zero)"
+
+  - name: max_instances
+    type: integer
+    default: 100
+    min_value: 1
+    max_value: 1000
+    description: "Max instances"
+
+  - name: concurrency
+    type: integer
+    default: 80
+    min_value: 1
+    max_value: 1000
+    description: "Max concurrent requests per instance"
+
+  - name: timeout
+    type: string
+    default: "300s"
+    description: "Request timeout (max 3600s)"
+
+  - name: allow_unauthenticated
+    type: boolean
+    default: true
+    description: "Allow public access"
+
+  - name: ingress
+    type: enum
+    default: "all"
+    enum_values:
+      - "all"                    # Public internet
+      - "internal"               # VPC only
+      - "internal-and-cloud-load-balancing"  # VPC + LB
+    description: "Ingress settings"
+
+  - name: vpc_connector
+    type: string
+    description: "VPC connector for private resources"
+
+  - name: vpc_egress
+    type: enum
+    default: "private-ranges-only"
+    enum_values:
+      - "private-ranges-only"    # Only private IPs via VPC
+      - "all-traffic"            # All traffic via VPC
+    description: "VPC egress mode"
+
+  - name: execution_environment
+    type: enum
+    default: "gen2"
+    enum_values:
+      - "gen1"    # First generation
+      - "gen2"    # Second generation (recommended)
+    description: "Execution environment"
+
+  - name: cpu_boost
+    type: boolean
+    default: true
+    description: "CPU boost during startup"
+
+  - name: env_vars
+    type: string
+    description: "Environment variables (KEY=value,KEY2=value2)"
+
+  - name: secrets
+    type: string
+    description: "Secrets (VAR=SECRET:VERSION,VAR2=SECRET2:latest)"
+
+  - name: cloudsql_instances
+    type: string
+    description: "Cloud SQL instances to connect"
+
+  - name: service_account
+    type: string
+    description: "Service account email"
+
+  - name: labels
+    type: string
+    description: "Labels (key=value,key2=value2)"
+
+  - name: revision_suffix
+    type: string
+    description: "Revision suffix for canary deployments"
+
+  - name: traffic_percent
+    type: integer
+    min_value: 0
+    max_value: 100
+    description: "Traffic percentage for revision"
+
+timeout_seconds: 600
+requires_project: true
+requires_region: true
+output_format: json
+
+# Service connections
+connects_to:
+  - vpc_connector: "Private resource access (required for DB/Redis)"
+  - secret_manager: "Mount secrets as env vars"
+  - cloud_sql: "Database via proxy"
+  - alloydb: "Database via VPC"
+  - memorystore_redis: "Cache via VPC"
+  - cloud_storage: "Object storage"
+  - pubsub: "Event publishing/receiving"
+  - artifact_registry: "Container images"
+  - load_balancer: "Global load balancing"
+  - cloud_armor: "WAF protection"
+  - vertex_ai: "ML inference"
+
+examples:
+  - description: "Deploy from Artifact Registry"
+    params:
+      action: "deploy"
+      service_name: "myapp-dev"
+      image: "us-central1-docker.pkg.dev/myproj/myapp-repo/myapp:latest"
+      memory: "512Mi"
+      cpu: "1"
+      min_instances: 0
+      max_instances: 10
+      allow_unauthenticated: true
+
+  - description: "Deploy with VPC connector (for DB access)"
+    params:
+      action: "deploy"
+      service_name: "myapp-prod"
+      image: "us-central1-docker.pkg.dev/myproj/myapp-repo/myapp:v1.2.3"
+      memory: "1Gi"
+      cpu: "2"
+      min_instances: 2
+      max_instances: 100
+      vpc_connector: "myapp-connector"
+      vpc_egress: "private-ranges-only"
+      ingress: "internal-and-cloud-load-balancing"
+
+  - description: "Deploy with secrets and Cloud SQL"
+    params:
+      action: "deploy"
+      service_name: "myapp-api"
+      image: "us-central1-docker.pkg.dev/myproj/myapp-repo/api:latest"
+      secrets: "DATABASE_URL=db-url:latest,API_KEY=api-key:latest"
+      cloudsql_instances: "myproj:us-central1:mydb"
+
+  - description: "Canary deployment (10% traffic)"
+    params:
+      action: "deploy"
+      service_name: "myapp-prod"
+      image: "us-central1-docker.pkg.dev/myproj/myapp-repo/myapp:v2.0.0"
+      revision_suffix: "v2-canary"
+      traffic_percent: 10
+
+  - description: "Make service private (internal only)"
+    params:
+      action: "update"
+      service_name: "myapp-internal"
+      ingress: "internal"
+      allow_unauthenticated: false
+
+related_tools:
+  - artifact_registry
+  - cloud_build
+  - vpc_connector
+  - secret_manager
+  - load_balancer
+  - domain_mapping
+
+pricing_url: "https://cloud.google.com/run/pricing"
+estimated_cost: "$0.00002400/vCPU-second, $0.00000250/GiB-second"

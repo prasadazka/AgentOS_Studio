@@ -1,0 +1,126 @@
+# Cloud Scheduler - Managed Cron Jobs
+name: cloud_scheduler
+description: "Create scheduled jobs (cron) to trigger HTTP endpoints, Pub/Sub, or App Engine"
+category: gcp_integration
+version: "1.0.0"
+
+command:
+  base: "gcloud scheduler jobs"
+  flags:
+    project_id: "--project"
+    location: "--location"
+    schedule: "--schedule"
+    uri: "--uri"
+    http_method: "--http-method"
+    message_body: "--message-body"
+    topic: "--topic"
+    time_zone: "--time-zone"
+    description: "--description"
+    attempt_deadline: "--attempt-deadline"
+    oidc_service_account: "--oidc-service-account-email"
+
+parameters:
+  - name: action
+    type: enum
+    required: true
+    enum_values: ["create", "delete", "describe", "list", "update", "run", "pause", "resume"]
+    description: "Operation to perform"
+
+  - name: job_type
+    type: enum
+    required: true
+    enum_values: ["http", "pubsub", "app-engine"]
+    description: "Job type (http for Cloud Run/Functions)"
+
+  - name: job_name
+    type: string
+    required: true
+    pattern: "^[a-zA-Z][a-zA-Z0-9_-]{0,499}$"
+    description: "Job name"
+
+  - name: project_id
+    type: string
+    required: true
+    description: "GCP project ID"
+
+  - name: location
+    type: string
+    default: "us-central1"
+    description: "Location for scheduler"
+
+  - name: schedule
+    type: string
+    required: true
+    description: "Cron schedule (e.g., '0 9 * * *' for daily 9AM)"
+
+  - name: uri
+    type: string
+    description: "HTTP target URL (for http type)"
+
+  - name: http_method
+    type: enum
+    default: "POST"
+    enum_values: ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD"]
+    description: "HTTP method"
+
+  - name: message_body
+    type: string
+    description: "Request body (JSON string)"
+
+  - name: topic
+    type: string
+    description: "Pub/Sub topic (for pubsub type)"
+
+  - name: time_zone
+    type: string
+    default: "UTC"
+    description: "Time zone (e.g., 'America/New_York')"
+
+  - name: oidc_service_account
+    type: string
+    description: "Service account for OIDC auth (for authenticated endpoints)"
+
+  - name: attempt_deadline
+    type: string
+    default: "180s"
+    description: "Time limit for job execution"
+
+timeout_seconds: 60
+requires_project: true
+output_format: json
+
+examples:
+  - description: "Daily cleanup job at midnight"
+    params:
+      action: "create"
+      job_type: "http"
+      job_name: "daily-cleanup"
+      schedule: "0 0 * * *"
+      uri: "https://myapp-dev-xxx.run.app/cleanup"
+      http_method: "POST"
+      time_zone: "UTC"
+
+  - description: "Every 5 minutes health check"
+    params:
+      action: "create"
+      job_type: "http"
+      job_name: "health-check"
+      schedule: "*/5 * * * *"
+      uri: "https://myapp-dev-xxx.run.app/health"
+      http_method: "GET"
+
+  - description: "Hourly report generation"
+    params:
+      action: "create"
+      job_type: "pubsub"
+      job_name: "hourly-report"
+      schedule: "0 * * * *"
+      topic: "generate-report"
+
+related_tools:
+  - cloud_functions
+  - cloud_run
+  - pubsub
+
+pricing_url: "https://cloud.google.com/scheduler/pricing"
+estimated_cost: "$0.10/job/month (3 free jobs)"

@@ -1,0 +1,120 @@
+# API Gateway - API Management
+name: api_gateway
+description: "Create managed API gateways with authentication, rate limiting, and monitoring"
+category: gcp_networking
+version: "1.0.0"
+
+command:
+  base: "gcloud api-gateway"
+  flags:
+    project_id: "--project"
+    location: "--location"
+
+parameters:
+  - name: action
+    type: enum
+    required: true
+    enum_values:
+      - "create_api"           # Create API
+      - "create_config"        # Create API config
+      - "create_gateway"       # Create gateway
+      - "delete_api"           # Delete API
+      - "delete_config"        # Delete config
+      - "delete_gateway"       # Delete gateway
+      - "describe_api"         # Get API details
+      - "describe_gateway"     # Get gateway details
+      - "list_apis"            # List APIs
+      - "list_gateways"        # List gateways
+      - "update_gateway"       # Update gateway config
+    description: "Operation to perform"
+
+  - name: api_id
+    type: string
+    required: true
+    pattern: "^[a-z][a-z0-9-]{0,62}$"
+    description: "API ID"
+
+  - name: project_id
+    type: string
+    required: true
+    description: "GCP project ID"
+
+  - name: location
+    type: string
+    default: "us-central1"
+    description: "Gateway location"
+
+  - name: config_id
+    type: string
+    description: "API config ID"
+
+  - name: gateway_id
+    type: string
+    description: "Gateway ID"
+
+  - name: openapi_spec
+    type: string
+    description: "Path to OpenAPI spec file"
+
+  - name: grpc_descriptor
+    type: string
+    description: "Path to gRPC descriptor file"
+
+  - name: backend_service
+    type: string
+    description: "Backend Cloud Run service URL"
+
+  - name: service_account
+    type: string
+    description: "Service account for backend calls"
+
+  - name: display_name
+    type: string
+    description: "Display name"
+
+  - name: labels
+    type: string
+    description: "Labels (key=value,key2=value2)"
+
+timeout_seconds: 300
+requires_project: true
+output_format: json
+
+# Service connections
+connects_to:
+  - cloud_run: "Backend services"
+  - cloud_functions: "Backend functions"
+  - cloud_armor: "WAF protection"
+  - service_account: "Authentication"
+  - cloud_monitoring: "API metrics"
+
+examples:
+  - description: "Create API"
+    params:
+      action: "create_api"
+      api_id: "myapp-api"
+      display_name: "MyApp API"
+
+  - description: "Create API config from OpenAPI spec"
+    params:
+      action: "create_config"
+      api_id: "myapp-api"
+      config_id: "v1"
+      openapi_spec: "./openapi.yaml"
+      backend_service: "https://myapp-prod-xxx.run.app"
+
+  - description: "Create gateway"
+    params:
+      action: "create_gateway"
+      api_id: "myapp-api"
+      gateway_id: "myapp-gateway"
+      config_id: "v1"
+      location: "us-central1"
+
+related_tools:
+  - cloud_run
+  - cloud_armor
+  - cloud_monitoring
+
+pricing_url: "https://cloud.google.com/api-gateway/pricing"
+estimated_cost: "$3/million calls"

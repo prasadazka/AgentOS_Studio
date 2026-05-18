@@ -1,0 +1,154 @@
+# Cloud NAT - Outbound Network Address Translation
+name: cloud_nat
+description: "Enable outbound internet access for private resources with static IPs"
+category: gcp_networking
+version: "1.0.0"
+
+command:
+  base: "gcloud compute routers nats"
+  flags:
+    project_id: "--project"
+    region: "--region"
+    router: "--router"
+    nat_all_subnet_ip_ranges: "--nat-all-subnet-ip-ranges"
+    nat_custom_subnet_ip_ranges: "--nat-custom-subnet-ip-ranges"
+
+parameters:
+  - name: action
+    type: enum
+    required: true
+    enum_values:
+      - "create"         # Create NAT gateway
+      - "delete"         # Delete NAT
+      - "describe"       # Get NAT details
+      - "list"           # List NATs
+      - "update"         # Update NAT config
+      - "create_router"  # Create Cloud Router first
+    description: "Operation to perform"
+
+  - name: nat_name
+    type: string
+    required: true
+    pattern: "^[a-z][a-z0-9-]{0,62}$"
+    description: "NAT gateway name"
+
+  - name: router_name
+    type: string
+    required: true
+    description: "Cloud Router name"
+
+  - name: project_id
+    type: string
+    required: true
+    description: "GCP project ID"
+
+  - name: region
+    type: string
+    default: "us-central1"
+    description: "Region"
+
+  - name: network
+    type: string
+    default: "default"
+    description: "VPC network"
+
+  - name: nat_ip_allocate_option
+    type: enum
+    default: "AUTO_ONLY"
+    enum_values:
+      - "AUTO_ONLY"       # GCP allocates IPs automatically
+      - "MANUAL_ONLY"     # Use specific static IPs
+    description: "IP allocation option"
+
+  - name: source_subnetwork_ip_ranges
+    type: enum
+    default: "ALL_SUBNETWORKS_ALL_IP_RANGES"
+    enum_values:
+      - "ALL_SUBNETWORKS_ALL_IP_RANGES"     # All subnets
+      - "ALL_SUBNETWORKS_ALL_PRIMARY_IP_RANGES"  # Primary ranges only
+      - "LIST_OF_SUBNETWORKS"               # Specific subnets
+    description: "Which subnets use NAT"
+
+  - name: min_ports_per_vm
+    type: integer
+    default: 64
+    min_value: 32
+    max_value: 65536
+    description: "Minimum ports per VM"
+
+  - name: max_ports_per_vm
+    type: integer
+    default: 65536
+    description: "Maximum ports per VM"
+
+  - name: enable_endpoint_independent_mapping
+    type: boolean
+    default: true
+    description: "Enable endpoint-independent mapping"
+
+  - name: log_config
+    type: enum
+    default: "ERRORS_ONLY"
+    enum_values:
+      - "ERRORS_ONLY"
+      - "TRANSLATIONS_ONLY"
+      - "ALL"
+    description: "Logging configuration"
+
+  - name: static_ips
+    type: string
+    description: "Static IP addresses (comma-separated)"
+
+timeout_seconds: 120
+requires_project: true
+requires_region: true
+output_format: json
+
+# Service connections
+connects_to:
+  - vpc_connector: "NAT for Cloud Run/Functions"
+  - cloud_run: "Outbound from services"
+  - cloud_functions: "Outbound from functions"
+  - alloydb: "Outbound for extensions"
+  - cloud_sql: "Outbound for extensions"
+
+examples:
+  - description: "Create Cloud Router first"
+    params:
+      action: "create_router"
+      router_name: "myapp-router"
+      network: "default"
+      region: "us-central1"
+
+  - description: "Create NAT with auto IPs"
+    params:
+      action: "create"
+      nat_name: "myapp-nat"
+      router_name: "myapp-router"
+      nat_ip_allocate_option: "AUTO_ONLY"
+      source_subnetwork_ip_ranges: "ALL_SUBNETWORKS_ALL_IP_RANGES"
+
+  - description: "Create NAT with static IPs (for whitelisting)"
+    params:
+      action: "create"
+      nat_name: "myapp-nat-static"
+      router_name: "myapp-router"
+      nat_ip_allocate_option: "MANUAL_ONLY"
+      static_ips: "34.120.1.1,34.120.1.2"
+
+  - description: "High-performance NAT config"
+    params:
+      action: "create"
+      nat_name: "high-perf-nat"
+      router_name: "myapp-router"
+      min_ports_per_vm: 1024
+      max_ports_per_vm: 65536
+      enable_endpoint_independent_mapping: true
+
+related_tools:
+  - vpc_connector
+  - cloud_run
+  - cloud_functions
+
+pricing_url: "https://cloud.google.com/nat/pricing"
+estimated_cost: "$0.045/hr/gateway + $0.045/GB processed"

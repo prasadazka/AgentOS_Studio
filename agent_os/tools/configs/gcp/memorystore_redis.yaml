@@ -1,0 +1,113 @@
+# Memorystore for Redis - Managed Redis Cache
+name: memorystore_redis
+description: "Create and manage Redis cache instances for session storage, caching, and queues"
+category: gcp_database
+version: "1.0.0"
+
+command:
+  base: "gcloud redis instances"
+  flags:
+    project_id: "--project"
+    region: "--region"
+    tier: "--tier"
+    size_gb: "--size"
+    redis_version: "--redis-version"
+    display_name: "--display-name"
+    network: "--network"
+    reserved_ip_range: "--reserved-ip-range"
+
+parameters:
+  - name: action
+    type: enum
+    required: true
+    enum_values: ["create", "delete", "describe", "list", "update"]
+    description: "Operation to perform"
+
+  - name: instance_name
+    type: string
+    required: true
+    pattern: "^[a-z][a-z0-9-]{0,39}$"
+    description: "Redis instance name"
+
+  - name: project_id
+    type: string
+    required: true
+    description: "GCP project ID"
+
+  - name: region
+    type: string
+    default: "us-central1"
+    description: "GCP region"
+
+  - name: tier
+    type: enum
+    default: "BASIC"
+    enum_values:
+      - "BASIC"       # Single node, no HA - $0.049/GB/hr
+      - "STANDARD_HA" # Primary + replica, auto-failover - $0.098/GB/hr
+    description: "BASIC for dev, STANDARD_HA for production"
+
+  - name: size_gb
+    type: integer
+    default: 1
+    min_value: 1
+    max_value: 300
+    description: "Memory size in GB"
+
+  - name: redis_version
+    type: enum
+    default: "REDIS_7_0"
+    enum_values:
+      - "REDIS_7_0"
+      - "REDIS_6_X"
+      - "REDIS_5_0"
+    description: "Redis version"
+
+  - name: network
+    type: string
+    default: "default"
+    description: "VPC network name"
+
+  - name: auth_enabled
+    type: boolean
+    default: true
+    description: "Enable AUTH for connections"
+
+  - name: transit_encryption
+    type: boolean
+    default: true
+    description: "Enable TLS in-transit encryption"
+
+timeout_seconds: 600
+requires_project: true
+requires_region: true
+output_format: json
+
+success_patterns:
+  - "Created"
+  - "already exists"
+
+examples:
+  - description: "Create dev Redis (1GB, no HA)"
+    params:
+      action: "create"
+      instance_name: "myapp-cache-dev"
+      tier: "BASIC"
+      size_gb: 1
+      redis_version: "REDIS_7_0"
+
+  - description: "Create production Redis (5GB, HA)"
+    params:
+      action: "create"
+      instance_name: "myapp-cache-prod"
+      tier: "STANDARD_HA"
+      size_gb: 5
+      auth_enabled: true
+      transit_encryption: true
+
+related_tools:
+  - cloud_run
+  - vpc_connector
+
+pricing_url: "https://cloud.google.com/memorystore/docs/redis/pricing"
+estimated_cost: "$35-$70/month for 1GB depending on tier"

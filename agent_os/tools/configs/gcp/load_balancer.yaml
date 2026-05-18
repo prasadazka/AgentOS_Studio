@@ -1,0 +1,139 @@
+# HTTP(S) Load Balancer - Global Load Balancing
+name: load_balancer
+description: "Create global HTTP(S) load balancers with SSL, CDN, and Cloud Armor integration"
+category: gcp_networking
+version: "1.0.0"
+
+command:
+  base: "gcloud compute"
+  flags:
+    project_id: "--project"
+    global: "--global"
+
+parameters:
+  - name: action
+    type: enum
+    required: true
+    enum_values:
+      - "create_neg"              # Create serverless NEG (for Cloud Run)
+      - "create_backend_service"  # Create backend service
+      - "create_url_map"          # Create URL routing
+      - "create_ssl_cert"         # Create managed SSL certificate
+      - "create_target_proxy"     # Create HTTPS target proxy
+      - "create_forwarding_rule"  # Create forwarding rule (public IP)
+      - "describe"                # Get LB details
+      - "list"                    # List components
+      - "delete"                  # Delete LB component
+    description: "Operation to perform"
+
+  - name: name
+    type: string
+    required: true
+    pattern: "^[a-z][a-z0-9-]{0,62}$"
+    description: "Resource name"
+
+  - name: project_id
+    type: string
+    required: true
+    description: "GCP project ID"
+
+  - name: region
+    type: string
+    default: "us-central1"
+    description: "Region (for NEG)"
+
+  - name: cloud_run_service
+    type: string
+    description: "Cloud Run service name (for serverless NEG)"
+
+  - name: backend_neg
+    type: string
+    description: "NEG name for backend service"
+
+  - name: backend_service
+    type: string
+    description: "Backend service name for URL map"
+
+  - name: domains
+    type: list
+    description: "Domain names for SSL certificate"
+
+  - name: ssl_certificate
+    type: string
+    description: "SSL certificate name for target proxy"
+
+  - name: url_map
+    type: string
+    description: "URL map name for target proxy"
+
+  - name: target_proxy
+    type: string
+    description: "Target proxy name for forwarding rule"
+
+  - name: security_policy
+    type: string
+    description: "Cloud Armor security policy name"
+
+  - name: enable_cdn
+    type: boolean
+    default: false
+    description: "Enable Cloud CDN"
+
+  - name: port
+    type: integer
+    default: 443
+    description: "Frontend port"
+
+timeout_seconds: 120
+requires_project: true
+output_format: json
+
+examples:
+  - description: "Create serverless NEG for Cloud Run"
+    params:
+      action: "create_neg"
+      name: "myapp-neg"
+      region: "us-central1"
+      cloud_run_service: "myapp-prod"
+
+  - description: "Create backend service"
+    params:
+      action: "create_backend_service"
+      name: "myapp-backend"
+      backend_neg: "myapp-neg"
+      enable_cdn: true
+      security_policy: "myapp-waf"
+
+  - description: "Create managed SSL certificate"
+    params:
+      action: "create_ssl_cert"
+      name: "myapp-ssl"
+      domains: ["myapp.com", "www.myapp.com"]
+
+  - description: "Create URL map (routing)"
+    params:
+      action: "create_url_map"
+      name: "myapp-urlmap"
+      backend_service: "myapp-backend"
+
+  - description: "Create HTTPS target proxy"
+    params:
+      action: "create_target_proxy"
+      name: "myapp-https-proxy"
+      url_map: "myapp-urlmap"
+      ssl_certificate: "myapp-ssl"
+
+  - description: "Create forwarding rule (public IP)"
+    params:
+      action: "create_forwarding_rule"
+      name: "myapp-https-rule"
+      target_proxy: "myapp-https-proxy"
+      port: 443
+
+related_tools:
+  - cloud_run
+  - cloud_armor
+  - cloud_cdn
+
+pricing_url: "https://cloud.google.com/compute/pricing#lb"
+estimated_cost: "$18/month base + $0.008/GB processed"

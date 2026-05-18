@@ -1,0 +1,78 @@
+# Cloud Run Domain Mapping - Custom Domains for Cloud Run
+name: domain_mapping
+description: "Map custom domains to Cloud Run services with automatic SSL"
+category: gcp_compute
+version: "1.0.0"
+
+command:
+  base: "gcloud run domain-mappings"
+  flags:
+    project_id: "--project"
+    region: "--region"
+    service: "--service"
+    domain: "--domain"
+
+parameters:
+  - name: action
+    type: enum
+    required: true
+    enum_values:
+      - "create"     # Create domain mapping
+      - "delete"     # Delete mapping
+      - "describe"   # Get mapping details
+      - "list"       # List mappings
+    description: "Operation to perform"
+
+  - name: domain
+    type: string
+    required: true
+    description: "Custom domain (e.g., api.myapp.com)"
+
+  - name: service_name
+    type: string
+    required: true
+    description: "Cloud Run service to map"
+
+  - name: project_id
+    type: string
+    required: true
+    description: "GCP project ID"
+
+  - name: region
+    type: string
+    default: "us-central1"
+    description: "Cloud Run region"
+
+timeout_seconds: 60
+requires_project: true
+requires_region: true
+output_format: json
+
+examples:
+  - description: "Map custom domain to service"
+    params:
+      action: "create"
+      domain: "api.myapp.com"
+      service_name: "myapp-prod"
+      region: "us-central1"
+
+  - description: "Map root domain"
+    params:
+      action: "create"
+      domain: "myapp.com"
+      service_name: "myapp-prod"
+      region: "us-central1"
+
+  - description: "List all domain mappings"
+    params:
+      action: "list"
+      project_id: "my-project"
+      region: "us-central1"
+
+related_tools:
+  - cloud_run
+  - cloud_dns
+  - load_balancer
+
+pricing_url: "https://cloud.google.com/run/pricing"
+estimated_cost: "Free (included with Cloud Run)"

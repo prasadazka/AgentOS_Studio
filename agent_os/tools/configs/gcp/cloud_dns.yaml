@@ -1,0 +1,129 @@
+# Cloud DNS - Managed DNS Service
+name: cloud_dns
+description: "Create and manage DNS zones and records for custom domains"
+category: gcp_networking
+version: "1.0.0"
+
+command:
+  base: "gcloud dns"
+  flags:
+    project_id: "--project"
+    zone: "--zone"
+    type: "--type"
+    ttl: "--ttl"
+    rrdatas: "--rrdatas"
+    dns_name: "--dns-name"
+    description: "--description"
+
+parameters:
+  - name: action
+    type: enum
+    required: true
+    enum_values:
+      - "create_zone"       # Create managed zone
+      - "delete_zone"       # Delete zone
+      - "describe_zone"     # Get zone details
+      - "list_zones"        # List zones
+      - "add_record"        # Add DNS record
+      - "delete_record"     # Delete DNS record
+      - "list_records"      # List records in zone
+      - "update_record"     # Update DNS record
+    description: "Operation to perform"
+
+  - name: zone_name
+    type: string
+    required: true
+    pattern: "^[a-z][a-z0-9-]{0,62}$"
+    description: "Zone name (internal identifier)"
+
+  - name: dns_name
+    type: string
+    description: "DNS name (e.g., myapp.com.)"
+
+  - name: project_id
+    type: string
+    required: true
+    description: "GCP project ID"
+
+  - name: record_name
+    type: string
+    description: "Record name (e.g., www.myapp.com.)"
+
+  - name: record_type
+    type: enum
+    default: "A"
+    enum_values:
+      - "A"       # IPv4 address
+      - "AAAA"    # IPv6 address
+      - "CNAME"   # Canonical name (alias)
+      - "MX"      # Mail exchange
+      - "TXT"     # Text record
+      - "NS"      # Name server
+      - "CAA"     # Certificate Authority Authorization
+    description: "DNS record type"
+
+  - name: record_data
+    type: string
+    description: "Record value (IP, hostname, or text)"
+
+  - name: ttl
+    type: integer
+    default: 300
+    min_value: 60
+    max_value: 86400
+    description: "Time to live in seconds"
+
+  - name: visibility
+    type: enum
+    default: "public"
+    enum_values:
+      - "public"   # Public DNS
+      - "private"  # Private DNS (VPC only)
+    description: "Zone visibility"
+
+timeout_seconds: 60
+requires_project: true
+output_format: json
+
+examples:
+  - description: "Create public DNS zone"
+    params:
+      action: "create_zone"
+      zone_name: "myapp-zone"
+      dns_name: "myapp.com."
+      visibility: "public"
+
+  - description: "Add A record for root domain"
+    params:
+      action: "add_record"
+      zone_name: "myapp-zone"
+      record_name: "myapp.com."
+      record_type: "A"
+      record_data: "34.120.123.45"
+      ttl: 300
+
+  - description: "Add CNAME for www"
+    params:
+      action: "add_record"
+      zone_name: "myapp-zone"
+      record_name: "www.myapp.com."
+      record_type: "CNAME"
+      record_data: "myapp.com."
+      ttl: 300
+
+  - description: "Add Cloud Run domain mapping"
+    params:
+      action: "add_record"
+      zone_name: "myapp-zone"
+      record_name: "api.myapp.com."
+      record_type: "CNAME"
+      record_data: "ghs.googlehosted.com."
+      ttl: 300
+
+related_tools:
+  - load_balancer
+  - cloud_run
+  - cloud_cdn
+
+pricing_url: "https://cloud.google.com/dns/pricing"
+estimated_cost: "$0.20/zone/month + $0.40/million queries"

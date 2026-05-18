@@ -1,0 +1,209 @@
+# Vertex AI - ML Platform and GenAI
+name: vertex_ai
+description: "Deploy ML models, use Gemini API, create endpoints, and run training jobs"
+category: gcp_ai
+version: "1.0.0"
+
+command:
+  base: "gcloud ai"
+  flags:
+    project_id: "--project"
+    region: "--region"
+
+parameters:
+  - name: action
+    type: enum
+    required: true
+    enum_values:
+      # Model deployment
+      - "deploy_model"           # Deploy model to endpoint
+      - "undeploy_model"         # Remove model from endpoint
+      - "list_models"            # List models
+      # Endpoints
+      - "create_endpoint"        # Create prediction endpoint
+      - "delete_endpoint"        # Delete endpoint
+      - "list_endpoints"         # List endpoints
+      - "predict"                # Make prediction
+      # Training
+      - "create_training_job"    # Create custom training job
+      - "list_training_jobs"     # List training jobs
+      - "cancel_training_job"    # Cancel job
+      # Datasets
+      - "create_dataset"         # Create dataset
+      - "list_datasets"          # List datasets
+      - "import_data"            # Import data to dataset
+      # Gemini/GenAI
+      - "list_publishers"        # List model publishers
+      - "list_foundation_models" # List available models (Gemini, etc.)
+    description: "Operation to perform"
+
+  - name: project_id
+    type: string
+    required: true
+    description: "GCP project ID"
+
+  - name: region
+    type: string
+    default: "us-central1"
+    description: "GCP region"
+
+  - name: model_name
+    type: string
+    description: "Model resource name or display name"
+
+  - name: endpoint_name
+    type: string
+    description: "Endpoint display name"
+
+  - name: endpoint_id
+    type: string
+    description: "Endpoint ID for predictions"
+
+  - name: machine_type
+    type: enum
+    default: "n1-standard-4"
+    enum_values:
+      - "n1-standard-2"
+      - "n1-standard-4"
+      - "n1-standard-8"
+      - "n1-standard-16"
+      - "n1-highmem-2"
+      - "n1-highmem-4"
+      - "n1-highmem-8"
+      - "a2-highgpu-1g"   # 1 A100 GPU
+      - "a2-highgpu-2g"   # 2 A100 GPUs
+      - "g2-standard-4"   # 1 L4 GPU
+      - "g2-standard-8"   # 1 L4 GPU
+    description: "Machine type for training/serving"
+
+  - name: accelerator_type
+    type: enum
+    enum_values:
+      - "NVIDIA_TESLA_T4"
+      - "NVIDIA_TESLA_V100"
+      - "NVIDIA_TESLA_A100"
+      - "NVIDIA_L4"
+    description: "GPU accelerator type"
+
+  - name: accelerator_count
+    type: integer
+    default: 1
+    min_value: 1
+    max_value: 8
+    description: "Number of GPUs"
+
+  - name: min_replica_count
+    type: integer
+    default: 1
+    min_value: 0
+    description: "Min replicas for autoscaling"
+
+  - name: max_replica_count
+    type: integer
+    default: 1
+    min_value: 1
+    description: "Max replicas for autoscaling"
+
+  - name: container_image
+    type: string
+    description: "Custom container image for training"
+
+  - name: training_script
+    type: string
+    description: "Path to training script in GCS"
+
+  - name: dataset_type
+    type: enum
+    enum_values:
+      - "IMAGE"
+      - "TABULAR"
+      - "TEXT"
+      - "VIDEO"
+      - "DOCUMENT"
+    description: "Dataset type"
+
+  - name: gcs_source
+    type: string
+    description: "GCS path for data import"
+
+  - name: prediction_input
+    type: string
+    description: "JSON input for prediction"
+
+  - name: foundation_model
+    type: enum
+    enum_values:
+      - "gemini-1.5-pro"
+      - "gemini-1.5-flash"
+      - "gemini-1.0-pro"
+      - "gemini-1.0-pro-vision"
+      - "text-bison"
+      - "chat-bison"
+      - "code-bison"
+      - "codechat-bison"
+      - "imagegeneration"
+      - "textembedding-gecko"
+    description: "Foundation model for GenAI"
+
+timeout_seconds: 600
+requires_project: true
+requires_region: true
+output_format: json
+
+# Service connections
+connects_to:
+  - cloud_storage: "Training data and model artifacts"
+  - alloydb: "Feature store and ML data"
+  - cloud_sql: "Feature store and ML data"
+  - bigquery: "Large-scale training data"
+  - pubsub: "Real-time prediction triggers"
+  - cloud_functions: "Serverless prediction endpoints"
+  - cloud_run: "Custom model serving containers"
+  - secret_manager: "API keys and credentials"
+  - vpc_connector: "Private network access"
+
+examples:
+  - description: "Create prediction endpoint"
+    params:
+      action: "create_endpoint"
+      endpoint_name: "myapp-predictions"
+      region: "us-central1"
+
+  - description: "Deploy model to endpoint"
+    params:
+      action: "deploy_model"
+      endpoint_name: "myapp-predictions"
+      model_name: "my-trained-model"
+      machine_type: "n1-standard-4"
+      min_replica_count: 1
+      max_replica_count: 3
+
+  - description: "Create custom training job"
+    params:
+      action: "create_training_job"
+      model_name: "my-custom-model"
+      container_image: "us-central1-docker.pkg.dev/myproj/ml/trainer:latest"
+      machine_type: "n1-standard-8"
+      accelerator_type: "NVIDIA_TESLA_T4"
+      accelerator_count: 1
+
+  - description: "Create tabular dataset"
+    params:
+      action: "create_dataset"
+      model_name: "customer-churn-data"
+      dataset_type: "TABULAR"
+
+  - description: "List foundation models"
+    params:
+      action: "list_foundation_models"
+      region: "us-central1"
+
+related_tools:
+  - cloud_storage
+  - alloydb
+  - cloud_sql
+  - pubsub
+  - cloud_run
+
+pricing_url: "https://cloud.google.com/vertex-ai/pricing"
+estimated_cost: "Training: $1-5/hr, Prediction: $0.0001-0.01/prediction"

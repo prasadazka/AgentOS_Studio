@@ -1,0 +1,93 @@
+# Cloud Pub/Sub - Messaging and Event Streaming
+name: pubsub
+description: "Create and manage Pub/Sub topics and subscriptions"
+category: gcp_messaging
+version: "1.0.0"
+
+command:
+  base: "gcloud pubsub"
+  flags:
+    project_id: "--project"
+    message_retention: "--message-retention-duration"
+    ack_deadline: "--ack-deadline"
+    push_endpoint: "--push-endpoint"
+
+parameters:
+  - name: action
+    type: enum
+    required: true
+    enum_values:
+      - "create_topic"
+      - "delete_topic"
+      - "list_topics"
+      - "create_subscription"
+      - "delete_subscription"
+      - "list_subscriptions"
+    description: "Operation to perform"
+
+  - name: topic_name
+    type: string
+    pattern: "^[a-zA-Z][a-zA-Z0-9-_.~+%]{2,254}$"
+    description: "Topic name"
+
+  - name: subscription_name
+    type: string
+    description: "Subscription name"
+
+  - name: project_id
+    type: string
+    required: true
+    description: "GCP project ID"
+
+  - name: message_retention
+    type: string
+    default: "7d"
+    description: "How long to retain messages (e.g., 10m, 7d)"
+
+  - name: ack_deadline
+    type: integer
+    default: 10
+    min_value: 10
+    max_value: 600
+    description: "Ack deadline in seconds"
+
+  - name: push_endpoint
+    type: string
+    description: "HTTPS endpoint for push delivery"
+
+  - name: dead_letter_topic
+    type: string
+    description: "Topic for failed messages"
+
+  - name: max_delivery_attempts
+    type: integer
+    default: 5
+    min_value: 5
+    max_value: 100
+    description: "Max delivery attempts before dead-letter"
+
+timeout_seconds: 60
+requires_project: true
+output_format: json
+
+examples:
+  - description: "Create event topic"
+    params:
+      action: "create_topic"
+      topic_name: "user-events"
+      project_id: "my-project"
+
+  - description: "Create push subscription"
+    params:
+      action: "create_subscription"
+      topic_name: "user-events"
+      subscription_name: "webhook-processor"
+      push_endpoint: "https://myapp.run.app/webhook"
+
+related_tools:
+  - cloud_functions
+  - cloud_run
+  - eventarc
+
+pricing_url: "https://cloud.google.com/pubsub/pricing"
+estimated_cost: "$40/TB of data"

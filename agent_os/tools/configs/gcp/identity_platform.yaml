@@ -1,0 +1,145 @@
+# Identity Platform - User Authentication
+name: identity_platform
+description: "Add user authentication with email, social logins, and multi-factor auth"
+category: gcp_security
+version: "1.0.0"
+
+command:
+  base: "gcloud identity-platform"
+  flags:
+    project_id: "--project"
+
+parameters:
+  - name: action
+    type: enum
+    required: true
+    enum_values:
+      - "enable"                    # Enable Identity Platform
+      - "config_update"             # Update config
+      - "config_get"                # Get config
+      - "add_provider"              # Add auth provider
+      - "remove_provider"           # Remove auth provider
+      - "list_providers"            # List providers
+      - "create_tenant"             # Create tenant (multi-tenancy)
+      - "delete_tenant"             # Delete tenant
+      - "list_tenants"              # List tenants
+    description: "Operation to perform"
+
+  - name: project_id
+    type: string
+    required: true
+    description: "GCP project ID"
+
+  - name: provider
+    type: enum
+    enum_values:
+      - "email"           # Email/password
+      - "phone"           # Phone number (SMS)
+      - "google.com"      # Google sign-in
+      - "github.com"      # GitHub OAuth
+      - "microsoft.com"   # Microsoft OAuth
+      - "apple.com"       # Apple sign-in
+      - "facebook.com"    # Facebook OAuth
+      - "twitter.com"     # Twitter OAuth
+      - "oidc"            # Custom OIDC provider
+      - "saml"            # SAML provider (enterprise)
+    description: "Authentication provider"
+
+  - name: enable_email_link
+    type: boolean
+    default: false
+    description: "Enable email link (passwordless) sign-in"
+
+  - name: enable_mfa
+    type: boolean
+    default: false
+    description: "Enable multi-factor authentication"
+
+  - name: mfa_providers
+    type: string
+    description: "MFA providers (sms,totp)"
+
+  - name: client_id
+    type: string
+    description: "OAuth client ID (for social providers)"
+
+  - name: client_secret
+    type: string
+    description: "OAuth client secret"
+
+  - name: tenant_id
+    type: string
+    description: "Tenant ID (for multi-tenancy)"
+
+  - name: tenant_display_name
+    type: string
+    description: "Tenant display name"
+
+  - name: allowed_domains
+    type: string
+    description: "Allowed email domains (comma-separated)"
+
+  - name: block_sign_up
+    type: boolean
+    default: false
+    description: "Block new user sign-ups"
+
+timeout_seconds: 120
+requires_project: true
+output_format: json
+
+# Service connections
+connects_to:
+  - cloud_run: "Authenticate API requests"
+  - cloud_functions: "Authenticate function calls"
+  - api_gateway: "Gateway authentication"
+  - firestore: "User data storage"
+  - firebase: "Full-stack integration"
+
+examples:
+  - description: "Enable Identity Platform"
+    params:
+      action: "enable"
+      project_id: "myproject"
+
+  - description: "Enable email/password auth"
+    params:
+      action: "add_provider"
+      provider: "email"
+      enable_email_link: true
+
+  - description: "Add Google sign-in"
+    params:
+      action: "add_provider"
+      provider: "google.com"
+      client_id: "123456.apps.googleusercontent.com"
+      client_secret: "xxx"
+
+  - description: "Add GitHub OAuth"
+    params:
+      action: "add_provider"
+      provider: "github.com"
+      client_id: "github-client-id"
+      client_secret: "github-secret"
+
+  - description: "Enable MFA"
+    params:
+      action: "config_update"
+      enable_mfa: true
+      mfa_providers: "sms,totp"
+
+  - description: "Create enterprise tenant"
+    params:
+      action: "create_tenant"
+      tenant_id: "enterprise-acme"
+      tenant_display_name: "ACME Corp"
+      allowed_domains: "acme.com,acme.co"
+
+related_tools:
+  - cloud_run
+  - api_gateway
+  - firestore
+  - secret_manager
+
+pricing_url: "https://cloud.google.com/identity-platform/pricing"
+estimated_cost: "Free up to 50k MAU, then $0.0025-$0.0055/MAU"

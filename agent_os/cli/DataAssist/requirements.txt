@@ -1,0 +1,17 @@
+# AgentOS core
+agent-os>=0.1.0
+
+# Environment variables
+python-dotenv>=1.0.0
+
+# LLM providers
+langchain>=0.3.0
+langchain-openai>=0.2.0
+
+# Tools
+
+# Data Analysis
+pandas>=2.2.0
+psutil>=5.9.0
+matplotlib>=3.8.0
+seaborn>=0.13.0

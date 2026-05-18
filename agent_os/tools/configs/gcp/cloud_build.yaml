@@ -1,0 +1,178 @@
+# Cloud Build - CI/CD Build Service
+name: cloud_build
+description: "Build containers, run tests, and deploy applications"
+category: gcp_devops
+version: "1.0.0"
+
+command:
+  base: "gcloud builds"
+  flags:
+    project_id: "--project"
+    region: "--region"
+    config: "--config"
+    tag: "--tag"
+    timeout: "--timeout"
+    machine_type: "--machine-type"
+    substitutions: "--substitutions"
+
+parameters:
+  - name: action
+    type: enum
+    required: true
+    enum_values:
+      - "submit"              # Submit build
+      - "list"                # List builds
+      - "describe"            # Get build details
+      - "cancel"              # Cancel build
+      - "log"                 # View build logs
+      - "create_trigger"      # Create build trigger
+      - "list_triggers"       # List triggers
+      - "delete_trigger"      # Delete trigger
+      - "run_trigger"         # Manually run trigger
+    description: "Operation to perform"
+
+  - name: project_id
+    type: string
+    required: true
+    description: "GCP project ID"
+
+  - name: region
+    type: string
+    default: "global"
+    description: "Build region (global or specific region)"
+
+  - name: source
+    type: string
+    description: "Source directory or GCS path"
+
+  - name: config
+    type: string
+    default: "cloudbuild.yaml"
+    description: "Build config file path"
+
+  - name: tag
+    type: string
+    description: "Docker image tag (for simple builds)"
+
+  - name: timeout
+    type: string
+    default: "1200s"
+    description: "Build timeout"
+
+  - name: machine_type
+    type: enum
+    default: "E2_MEDIUM"
+    enum_values:
+      - "E2_MEDIUM"        # 2 vCPU, 8GB - $0.003/min
+      - "E2_HIGHCPU_8"     # 8 vCPU, 8GB - $0.006/min
+      - "E2_HIGHCPU_32"    # 32 vCPU, 32GB - $0.024/min
+      - "N1_HIGHCPU_8"     # 8 vCPU, 7.2GB - $0.012/min
+      - "N1_HIGHCPU_32"    # 32 vCPU, 28.8GB - $0.048/min
+    description: "Build machine type"
+
+  - name: substitutions
+    type: string
+    description: "Build substitutions (_VAR=value,_VAR2=value2)"
+
+  - name: build_id
+    type: string
+    description: "Build ID (for describe/cancel)"
+
+  - name: trigger_name
+    type: string
+    description: "Trigger name"
+
+  - name: trigger_type
+    type: enum
+    enum_values:
+      - "github"
+      - "cloud-source"
+      - "bitbucket"
+      - "webhook"
+      - "pubsub"
+      - "manual"
+    description: "Trigger type"
+
+  - name: repo_name
+    type: string
+    description: "Repository name for trigger"
+
+  - name: repo_owner
+    type: string
+    description: "Repository owner for trigger"
+
+  - name: branch_pattern
+    type: string
+    default: "^main$"
+    description: "Branch pattern regex"
+
+  - name: tag_pattern
+    type: string
+    description: "Tag pattern regex (for release triggers)"
+
+  - name: included_files
+    type: string
+    description: "Files that trigger build (glob patterns)"
+
+  - name: ignored_files
+    type: string
+    description: "Files that don't trigger build"
+
+  - name: service_account
+    type: string
+    description: "Service account for builds"
+
+timeout_seconds: 1800
+requires_project: true
+output_format: json
+
+# Service connections
+connects_to:
+  - artifact_registry: "Push built images"
+  - cloud_run: "Deploy after build"
+  - cloud_functions: "Deploy after build"
+  - secret_manager: "Build-time secrets"
+  - cloud_storage: "Build artifacts and cache"
+
+examples:
+  - description: "Submit build from current directory"
+    params:
+      action: "submit"
+      source: "."
+      tag: "us-central1-docker.pkg.dev/myproj/myapp/api:latest"
+
+  - description: "Submit with custom config"
+    params:
+      action: "submit"
+      source: "."
+      config: "cloudbuild.yaml"
+      substitutions: "_SERVICE_NAME=myapp,_REGION=us-central1"
+      machine_type: "E2_HIGHCPU_8"
+
+  - description: "Create GitHub trigger for main branch"
+    params:
+      action: "create_trigger"
+      trigger_name: "deploy-main"
+      trigger_type: "github"
+      repo_owner: "myorg"
+      repo_name: "myapp"
+      branch_pattern: "^main$"
+      config: "cloudbuild.yaml"
+
+  - description: "Create trigger for releases"
+    params:
+      action: "create_trigger"
+      trigger_name: "deploy-release"
+      trigger_type: "github"
+      repo_owner: "myorg"
+      repo_name: "myapp"
+      tag_pattern: "^v[0-9]+\\.[0-9]+\\.[0-9]+$"
+
+related_tools:
+  - artifact_registry
+  - cloud_run
+  - secret_manager
+  - service_account
+
+pricing_url: "https://cloud.google.com/build/pricing"
+estimated_cost: "$0.003-$0.048/build-minute (120 free minutes/day)"

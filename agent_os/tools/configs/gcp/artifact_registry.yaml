@@ -1,0 +1,150 @@
+# Artifact Registry - Container & Package Storage
+name: artifact_registry
+description: "Store Docker images, npm packages, Python packages, and other artifacts"
+category: gcp_devops
+version: "1.0.0"
+
+command:
+  base: "gcloud artifacts repositories"
+  flags:
+    project_id: "--project"
+    location: "--location"
+    repository_format: "--repository-format"
+    description: "--description"
+    mode: "--mode"
+
+parameters:
+  - name: action
+    type: enum
+    required: true
+    enum_values:
+      - "create"          # Create repository
+      - "delete"          # Delete repository
+      - "describe"        # Get repository details
+      - "list"            # List repositories
+      - "list_images"     # List Docker images
+      - "list_tags"       # List image tags
+      - "delete_image"    # Delete image
+      - "add_iam"         # Add IAM binding
+      - "remove_iam"      # Remove IAM binding
+    description: "Operation to perform"
+
+  - name: repository_name
+    type: string
+    required: true
+    pattern: "^[a-z][a-z0-9-]{0,62}$"
+    description: "Repository name"
+
+  - name: project_id
+    type: string
+    required: true
+    description: "GCP project ID"
+
+  - name: location
+    type: string
+    default: "us-central1"
+    description: "Repository location"
+
+  - name: format
+    type: enum
+    default: "docker"
+    enum_values:
+      - "docker"    # Docker images
+      - "npm"       # Node.js packages
+      - "python"    # Python packages (pip)
+      - "maven"     # Java packages
+      - "apt"       # Debian packages
+      - "yum"       # RPM packages
+      - "go"        # Go modules
+    description: "Repository format"
+
+  - name: mode
+    type: enum
+    default: "standard-repository"
+    enum_values:
+      - "standard-repository"    # Standard storage
+      - "remote-repository"      # Proxy for external registries
+      - "virtual-repository"     # Aggregate multiple repos
+    description: "Repository mode"
+
+  - name: description
+    type: string
+    description: "Repository description"
+
+  - name: immutable_tags
+    type: boolean
+    default: false
+    description: "Make tags immutable (can't overwrite)"
+
+  - name: cleanup_policy_dry_run
+    type: boolean
+    default: true
+    description: "Dry run cleanup policies"
+
+  - name: image_path
+    type: string
+    description: "Image path for operations (repo/image)"
+
+  - name: tag
+    type: string
+    description: "Image tag"
+
+  - name: member
+    type: string
+    description: "IAM member (user:, serviceAccount:, etc.)"
+
+  - name: role
+    type: enum
+    enum_values:
+      - "roles/artifactregistry.reader"
+      - "roles/artifactregistry.writer"
+      - "roles/artifactregistry.admin"
+    description: "IAM role"
+
+timeout_seconds: 60
+requires_project: true
+output_format: json
+
+# Service connections
+connects_to:
+  - cloud_build: "Push images during build"
+  - cloud_run: "Pull images for deployment"
+  - cloud_functions: "Pull images for deployment"
+  - service_account: "IAM for access control"
+
+examples:
+  - description: "Create Docker repository"
+    params:
+      action: "create"
+      repository_name: "myapp-repo"
+      location: "us-central1"
+      format: "docker"
+      description: "Docker images for myapp"
+
+  - description: "Create npm repository"
+    params:
+      action: "create"
+      repository_name: "npm-packages"
+      location: "us-central1"
+      format: "npm"
+
+  - description: "List Docker images"
+    params:
+      action: "list_images"
+      repository_name: "myapp-repo"
+      location: "us-central1"
+
+  - description: "Grant Cloud Build writer access"
+    params:
+      action: "add_iam"
+      repository_name: "myapp-repo"
+      member: "serviceAccount:123456@cloudbuild.gserviceaccount.com"
+      role: "roles/artifactregistry.writer"
+
+related_tools:
+  - cloud_build
+  - cloud_run
+  - service_account
+
+pricing_url: "https://cloud.google.com/artifact-registry/pricing"
+estimated_cost: "$0.10/GB/month storage"

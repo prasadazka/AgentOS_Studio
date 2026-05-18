@@ -1,0 +1,326 @@
+# GCP Service Connections Map
+# Shows how services integrate with each other for web apps
+
+name: service_connections
+description: "Service integration patterns for web applications"
+version: "1.0.0"
+
+# ============================================================================
+# ARCHITECTURE PATTERNS
+# ============================================================================
+
+patterns:
+  # Standard Web App Architecture
+  standard_web_app:
+    description: "Typical web application with database and cache"
+    flow:
+      - "User → Cloud CDN → Load Balancer → Cloud Run"
+      - "Cloud Run → VPC Connector → Cloud SQL/AlloyDB"
+      - "Cloud Run → VPC Connector → Memorystore Redis"
+      - "Cloud Run → Secret Manager (credentials)"
+      - "Cloud Run → Cloud Storage (uploads)"
+    services:
+      - cloud_run
+      - load_balancer
+      - cloud_cdn
+      - cloud_sql
+      - memorystore_redis
+      - vpc_connector
+      - secret_manager
+      - cloud_storage
+
+  # Event-Driven Architecture
+  event_driven:
+    description: "Async processing with events and queues"
+    flow:
+      - "Cloud Run → Pub/Sub (publish events)"
+      - "Pub/Sub → Cloud Functions (process events)"
+      - "Cloud Functions → Cloud Tasks (async jobs)"
+      - "Cloud Tasks → Cloud Run (HTTP callbacks)"
+      - "Cloud Scheduler → Pub/Sub/HTTP (cron triggers)"
+    services:
+      - cloud_run
+      - pubsub
+      - cloud_functions
+      - cloud_tasks
+      - cloud_scheduler
+
+  # ML/AI Architecture
+  ml_architecture:
+    description: "Machine learning with Vertex AI"
+    flow:
+      - "Cloud Storage → Vertex AI (training data)"
+      - "AlloyDB/BigQuery → Vertex AI (feature store)"
+      - "Vertex AI → Endpoint (predictions)"
+      - "Cloud Run → Vertex AI Endpoint (inference)"
+      - "Pub/Sub → Cloud Functions → Vertex AI (real-time ML)"
+    services:
+      - vertex_ai
+      - alloydb
+      - bigquery
+      - cloud_storage
+      - cloud_run
+      - pubsub
+      - cloud_functions
+
+  # Secure Production
+  secure_production:
+    description: "Production security and observability"
+    flow:
+      - "Cloud Armor → Load Balancer (WAF protection)"
+      - "Cloud Run → Secret Manager (credentials)"
+      - "Cloud Run → Cloud Logging (logs)"
+      - "Cloud Monitoring → Alerting (uptime, metrics)"
+      - "VPC Connector → Private resources (DB, Redis)"
+    services:
+      - cloud_armor
+      - load_balancer
+      - secret_manager
+      - cloud_logging
+      - cloud_monitoring
+      - vpc_connector
+
+# ============================================================================
+# SERVICE CONNECTION MATRIX
+# ============================================================================
+
+connections:
+  # Cloud Run connections
+  cloud_run:
+    connects_to:
+      - service: vpc_connector
+        purpose: "Access private resources (DB, Redis, internal APIs)"
+        required: true
+        config: "--vpc-connector=CONNECTOR_NAME"
+      - service: secret_manager
+        purpose: "Mount secrets as env vars or volumes"
+        required: true
+        config: "--set-secrets=VAR=SECRET:VERSION"
+      - service: cloud_sql
+        purpose: "Database access via Cloud SQL Auth Proxy"
+        required: false
+        config: "--add-cloudsql-instances=INSTANCE"
+      - service: alloydb
+        purpose: "AlloyDB via VPC connector"
+        required: false
+      - service: memorystore_redis
+        purpose: "Redis cache via VPC connector"
+        required: false
+      - service: cloud_storage
+        purpose: "Object storage for uploads/assets"
+        required: false
+      - service: pubsub
+        purpose: "Publish events, receive push subscriptions"
+        required: false
+      - service: vertex_ai
+        purpose: "ML model inference"
+        required: false
+
+  # Cloud Functions connections
+  cloud_functions:
+    connects_to:
+      - service: vpc_connector
+        purpose: "Access private resources"
+        config: "--vpc-connector=CONNECTOR_NAME"
+      - service: secret_manager
+        purpose: "Access secrets"
+        config: "--set-secrets=VAR=SECRET:VERSION"
+      - service: pubsub
+        purpose: "Event trigger source"
+        config: "--trigger-topic=TOPIC"
+      - service: cloud_storage
+        purpose: "File trigger source"
+        config: "--trigger-bucket=BUCKET"
+      - service: firestore
+        purpose: "Document trigger source"
+        config: "--trigger-event=providers/cloud.firestore/eventTypes/document.write"
+
+  # Database connections
+  cloud_sql:
+    connects_to:
+      - service: vpc_connector
+        purpose: "Required for Cloud Run/Functions access"
+        required: true
+      - service: secret_manager
+        purpose: "Store database credentials"
+        required: true
+      - service: cloud_logging
+        purpose: "Query logs and slow query analysis"
+        required: false
+      - service: cloud_monitoring
+        purpose: "Database metrics and alerts"
+        required: false
+
+  alloydb:
+    connects_to:
+      - service: vpc_connector
+        purpose: "Required - AlloyDB is VPC-native only"
+        required: true
+      - service: secret_manager
+        purpose: "Store database credentials"
+        required: true
+      - service: vertex_ai
+        purpose: "ML workloads with vector embeddings"
+        required: false
+      - service: cloud_logging
+        purpose: "Query logs"
+        required: false
+
+  # Cache connections
+  memorystore_redis:
+    connects_to:
+      - service: vpc_connector
+        purpose: "Required - Redis is VPC-only"
+        required: true
+      - service: cloud_run
+        purpose: "Session storage, caching"
+        required: false
+      - service: cloud_functions
+        purpose: "Caching layer"
+        required: false
+
+  # Load Balancer connections
+  load_balancer:
+    connects_to:
+      - service: cloud_run
+        purpose: "Backend via serverless NEG"
+        required: true
+      - service: cloud_cdn
+        purpose: "CDN caching"
+        required: false
+      - service: cloud_armor
+        purpose: "WAF and DDoS protection"
+        required: true
+      - service: cloud_dns
+        purpose: "Custom domain resolution"
+        required: false
+
+  # Vertex AI connections
+  vertex_ai:
+    connects_to:
+      - service: cloud_storage
+        purpose: "Training data and model artifacts"
+        required: true
+      - service: alloydb
+        purpose: "Feature store with pgvector"
+        required: false
+      - service: bigquery
+        purpose: "Large-scale training datasets"
+        required: false
+      - service: cloud_run
+        purpose: "Custom model serving"
+        required: false
+      - service: secret_manager
+        purpose: "API keys and credentials"
+        required: true
+
+  # Pub/Sub connections
+  pubsub:
+    connects_to:
+      - service: cloud_functions
+        purpose: "Push to function"
+        required: false
+      - service: cloud_run
+        purpose: "Push to service"
+        required: false
+      - service: bigquery
+        purpose: "Streaming inserts"
+        required: false
+      - service: cloud_storage
+        purpose: "Avro export"
+        required: false
+
+  # Observability connections
+  cloud_logging:
+    connects_to:
+      - service: bigquery
+        purpose: "Log sink for analytics"
+        required: false
+      - service: cloud_storage
+        purpose: "Log sink for archival"
+        required: false
+      - service: pubsub
+        purpose: "Log sink for streaming"
+        required: false
+
+  cloud_monitoring:
+    connects_to:
+      - service: cloud_logging
+        purpose: "Log-based metrics"
+        required: false
+      - service: pubsub
+        purpose: "Alert notifications"
+        required: false
+
+# ============================================================================
+# DEPLOYMENT ORDER
+# ============================================================================
+
+deployment_order:
+  description: "Order to deploy services for a complete web app"
+  phases:
+    - phase: 1
+      name: "Foundation"
+      services:
+        - vpc_connector
+        - secret_manager
+      reason: "Required by other services"
+
+    - phase: 2
+      name: "Databases"
+      services:
+        - cloud_sql
+        - alloydb
+        - memorystore_redis
+        - firestore
+      reason: "Backend needs data layer first"
+
+    - phase: 3
+      name: "Storage"
+      services:
+        - cloud_storage
+        - bigquery
+      reason: "Object and analytics storage"
+
+    - phase: 4
+      name: "Compute"
+      services:
+        - cloud_run
+        - cloud_functions
+      reason: "Application workloads"
+
+    - phase: 5
+      name: "Integration"
+      services:
+        - pubsub
+        - cloud_tasks
+        - cloud_scheduler
+      reason: "Async and event processing"
+
+    - phase: 6
+      name: "Networking"
+      services:
+        - load_balancer
+        - cloud_cdn
+        - cloud_dns
+        - domain_mapping
+      reason: "Public access and custom domains"
+
+    - phase: 7
+      name: "Security"
+      services:
+        - cloud_armor
+      reason: "WAF protection"
+
+    - phase: 8
+      name: "AI/ML"
+      services:
+        - vertex_ai
+      reason: "ML capabilities"
+
+    - phase: 9
+      name: "Observability"
+      services:
+        - cloud_monitoring
+        - cloud_logging
+      reason: "Monitoring and alerting"

@@ -1,0 +1,110 @@
+# VPC Access Connector - Private Network Access
+name: vpc_connector
+description: "Create VPC connectors for Cloud Run/Functions to access private resources (Redis, SQL, VMs)"
+category: gcp_networking
+version: "1.0.0"
+
+command:
+  base: "gcloud compute networks vpc-access connectors"
+  flags:
+    project_id: "--project"
+    region: "--region"
+    network: "--network"
+    subnet: "--subnet"
+    ip_cidr_range: "--range"
+    min_throughput: "--min-throughput"
+    max_throughput: "--max-throughput"
+    min_instances: "--min-instances"
+    max_instances: "--max-instances"
+
+parameters:
+  - name: action
+    type: enum
+    required: true
+    enum_values: ["create", "delete", "describe", "list"]
+    description: "Operation to perform"
+
+  - name: connector_name
+    type: string
+    required: true
+    pattern: "^[a-z][a-z0-9-]{0,24}$"
+    description: "Connector name (max 25 chars)"
+
+  - name: project_id
+    type: string
+    required: true
+    description: "GCP project ID"
+
+  - name: region
+    type: string
+    default: "us-central1"
+    description: "Region (must match Cloud Run/Functions region)"
+
+  - name: network
+    type: string
+    default: "default"
+    description: "VPC network name"
+
+  - name: ip_cidr_range
+    type: string
+    default: "10.8.0.0/28"
+    description: "IP range for connector (must be /28, unused in VPC)"
+
+  - name: min_throughput
+    type: integer
+    default: 200
+    min_value: 200
+    max_value: 1000
+    description: "Min throughput in Mbps"
+
+  - name: max_throughput
+    type: integer
+    default: 300
+    min_value: 200
+    max_value: 1000
+    description: "Max throughput in Mbps"
+
+  - name: min_instances
+    type: integer
+    default: 2
+    min_value: 2
+    max_value: 10
+    description: "Min connector instances"
+
+  - name: max_instances
+    type: integer
+    default: 3
+    min_value: 2
+    max_value: 10
+    description: "Max connector instances"
+
+timeout_seconds: 300
+requires_project: true
+requires_region: true
+output_format: json
+
+examples:
+  - description: "Create connector for default VPC"
+    params:
+      action: "create"
+      connector_name: "myapp-connector"
+      network: "default"
+      ip_cidr_range: "10.8.0.0/28"
+
+  - description: "Create high-throughput connector"
+    params:
+      action: "create"
+      connector_name: "high-throughput"
+      network: "default"
+      min_throughput: 300
+      max_throughput: 1000
+      max_instances: 10
+
+related_tools:
+  - cloud_run
+  - cloud_functions
+  - memorystore_redis
+  - cloud_sql
+
+pricing_url: "https://cloud.google.com/vpc/docs/serverless-vpc-access"
+estimated_cost: "$0.01/hr per instance (~$15-45/month)"

@@ -1,0 +1,149 @@
+# AlloyDB - Enterprise PostgreSQL-Compatible Database
+name: alloydb
+description: "Create AlloyDB clusters - Google's high-performance PostgreSQL-compatible database"
+category: gcp_database
+version: "1.0.0"
+
+command:
+  base: "gcloud alloydb"
+  flags:
+    project_id: "--project"
+    region: "--region"
+    cluster: "--cluster"
+    network: "--network"
+    password: "--password"
+    cpu_count: "--cpu-count"
+    database_flags: "--database-flags"
+
+parameters:
+  - name: action
+    type: enum
+    required: true
+    enum_values:
+      - "create_cluster"      # Create AlloyDB cluster
+      - "delete_cluster"      # Delete cluster
+      - "describe_cluster"    # Get cluster info
+      - "list_clusters"       # List clusters
+      - "create_instance"     # Create primary instance
+      - "create_read_pool"    # Create read replica pool
+      - "delete_instance"     # Delete instance
+      - "list_instances"      # List instances
+      - "update_instance"     # Update instance
+      - "restart_instance"    # Restart instance
+    description: "Operation to perform"
+
+  - name: cluster_name
+    type: string
+    required: true
+    pattern: "^[a-z][a-z0-9-]{0,62}$"
+    description: "Cluster name"
+
+  - name: instance_name
+    type: string
+    description: "Instance name (for instance operations)"
+
+  - name: project_id
+    type: string
+    required: true
+    description: "GCP project ID"
+
+  - name: region
+    type: string
+    default: "us-central1"
+    description: "GCP region"
+
+  - name: network
+    type: string
+    default: "default"
+    description: "VPC network for private IP"
+
+  - name: password
+    type: string
+    description: "Initial postgres password"
+
+  - name: instance_type
+    type: enum
+    default: "PRIMARY"
+    enum_values:
+      - "PRIMARY"     # Primary read-write instance
+      - "READ_POOL"   # Read replica pool
+    description: "Instance type"
+
+  - name: cpu_count
+    type: integer
+    default: 2
+    min_value: 2
+    max_value: 64
+    description: "Number of CPUs (2, 4, 8, 16, 32, 64)"
+
+  - name: read_pool_node_count
+    type: integer
+    default: 2
+    min_value: 1
+    max_value: 20
+    description: "Number of read pool nodes"
+
+  - name: availability_type
+    type: enum
+    default: "REGIONAL"
+    enum_values:
+      - "REGIONAL"   # High availability (recommended)
+      - "ZONAL"      # Single zone
+    description: "Availability type"
+
+  - name: database_flags
+    type: string
+    description: "Database flags (key=value,key2=value2)"
+
+  - name: automated_backup_enabled
+    type: boolean
+    default: true
+    description: "Enable automated backups"
+
+timeout_seconds: 900
+requires_project: true
+requires_region: true
+output_format: json
+
+# Service connections
+connects_to:
+  - vpc_connector: "Required for Cloud Run/Functions access"
+  - secret_manager: "Store database credentials"
+  - cloud_monitoring: "Database metrics and alerts"
+  - cloud_logging: "Query logs and audit logs"
+  - vertex_ai: "ML workloads with database access"
+
+examples:
+  - description: "Create AlloyDB cluster"
+    params:
+      action: "create_cluster"
+      cluster_name: "myapp-db"
+      region: "us-central1"
+      network: "default"
+      password: "initial-password-change-me"
+
+  - description: "Create primary instance"
+    params:
+      action: "create_instance"
+      cluster_name: "myapp-db"
+      instance_name: "myapp-db-primary"
+      instance_type: "PRIMARY"
+      cpu_count: 2
+      availability_type: "REGIONAL"
+
+  - description: "Create read replica pool"
+    params:
+      action: "create_read_pool"
+      cluster_name: "myapp-db"
+      instance_name: "myapp-db-readers"
+      cpu_count: 2
+      read_pool_node_count: 2
+
+related_tools:
+  - cloud_sql
+  - vpc_connector
+  - secret_manager
+  - vertex_ai
+
+pricing_url: "https://cloud.google.com/alloydb/pricing"
+estimated_cost: "$0.20/vCPU/hr + $0.0004/GB/hr storage (~$300/mo for 2 CPU)"

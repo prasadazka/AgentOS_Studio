@@ -1,0 +1,104 @@
+# Firestore - NoSQL Document Database
+name: firestore
+description: "Create and manage Firestore databases for real-time NoSQL data"
+category: gcp_database
+version: "1.0.0"
+
+command:
+  base: "gcloud firestore"
+  flags:
+    project_id: "--project"
+    region: "--region"
+    type: "--type"
+
+parameters:
+  - name: action
+    type: enum
+    required: true
+    enum_values:
+      - "create_database"   # Create Firestore database
+      - "describe_database" # Get database details
+      - "list_databases"    # List databases
+      - "create_index"      # Create composite index
+      - "list_indexes"      # List indexes
+      - "delete_index"      # Delete index
+      - "export"            # Export data
+      - "import"            # Import data
+    description: "Operation to perform"
+
+  - name: database_id
+    type: string
+    default: "(default)"
+    description: "Database ID ((default) for main database)"
+
+  - name: project_id
+    type: string
+    required: true
+    description: "GCP project ID"
+
+  - name: region
+    type: string
+    default: "us-central"
+    description: "Region (note: different from standard GCP regions)"
+
+  - name: database_type
+    type: enum
+    default: "firestore-native"
+    enum_values:
+      - "firestore-native"  # Native mode (recommended)
+      - "datastore-mode"    # Datastore compatibility mode
+    description: "Database mode"
+
+  - name: collection_id
+    type: string
+    description: "Collection for index operations"
+
+  - name: field_path
+    type: string
+    description: "Field path for index (dot notation)"
+
+  - name: order
+    type: enum
+    enum_values: ["ASCENDING", "DESCENDING"]
+    description: "Index order"
+
+  - name: export_uri
+    type: string
+    description: "GCS URI for export (gs://bucket/path)"
+
+  - name: import_uri
+    type: string
+    description: "GCS URI for import (gs://bucket/path)"
+
+timeout_seconds: 300
+requires_project: true
+output_format: json
+
+examples:
+  - description: "Create Firestore database"
+    params:
+      action: "create_database"
+      project_id: "my-project"
+      region: "us-central"
+      database_type: "firestore-native"
+
+  - description: "Export database to GCS"
+    params:
+      action: "export"
+      project_id: "my-project"
+      export_uri: "gs://my-bucket/firestore-backup"
+
+  - description: "Create composite index"
+    params:
+      action: "create_index"
+      collection_id: "users"
+      field_path: "email"
+      order: "ASCENDING"
+
+related_tools:
+  - cloud_storage
+  - cloud_run
+  - cloud_functions
+
+pricing_url: "https://cloud.google.com/firestore/pricing"
+estimated_cost: "$0.18/100k reads, $0.18/100k writes, $0.18/GB/month"

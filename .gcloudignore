@@ -1,0 +1,50 @@
+# Files NOT uploaded to Cloud Build as source.
+# Mirrors .gitignore plus build-time exclusions.
+
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+.next/
+out/
+
+# Secrets / env
+.env
+.env.*
+!.env.example
+
+# Data / DBs
+*.db
+*.sqlite*
+*.duckdb
+data/
+demo_data/
+chroma_db/
+faiss_db/
+uploads/
+backend/gwdb_cleaned_export.*
+backend/gwdb_output.*
+backend/output.db
+backend/merged_output.csv
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Large / generated
+*.zip
+*.pptx
+backend.png

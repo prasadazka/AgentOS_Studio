@@ -1,0 +1,147 @@
+# BigQuery - Data Warehouse and Analytics
+name: bigquery
+description: "Create datasets, tables, and run SQL analytics at scale"
+category: gcp_analytics
+version: "1.0.0"
+
+command:
+  base: "bq"
+  flags:
+    project_id: "--project_id"
+    location: "--location"
+    dataset_id: "--dataset_id"
+
+parameters:
+  - name: action
+    type: enum
+    required: true
+    enum_values:
+      # Datasets
+      - "create_dataset"     # Create dataset
+      - "delete_dataset"     # Delete dataset
+      - "list_datasets"      # List datasets
+      - "show_dataset"       # Show dataset details
+      # Tables
+      - "create_table"       # Create table
+      - "delete_table"       # Delete table
+      - "list_tables"        # List tables
+      - "show_table"         # Show table schema
+      # Data operations
+      - "load"               # Load data from GCS
+      - "extract"            # Export to GCS
+      - "query"              # Run SQL query
+      - "copy"               # Copy table
+    description: "Operation to perform"
+
+  - name: project_id
+    type: string
+    required: true
+    description: "GCP project ID"
+
+  - name: location
+    type: string
+    default: "US"
+    description: "Dataset location (US, EU, region)"
+
+  - name: dataset_id
+    type: string
+    description: "Dataset ID"
+
+  - name: table_id
+    type: string
+    description: "Table ID"
+
+  - name: schema
+    type: string
+    description: "Table schema (field:TYPE,field2:TYPE2)"
+
+  - name: source_uri
+    type: string
+    description: "GCS URI for load (gs://bucket/path)"
+
+  - name: destination_uri
+    type: string
+    description: "GCS URI for extract"
+
+  - name: source_format
+    type: enum
+    default: "CSV"
+    enum_values:
+      - "CSV"
+      - "JSON"
+      - "AVRO"
+      - "PARQUET"
+      - "ORC"
+    description: "Source data format"
+
+  - name: query_sql
+    type: string
+    description: "SQL query to execute"
+
+  - name: partition_field
+    type: string
+    description: "Field for time partitioning"
+
+  - name: cluster_fields
+    type: string
+    description: "Fields for clustering (comma-separated)"
+
+  - name: expiration_days
+    type: integer
+    description: "Table expiration in days"
+
+  - name: description
+    type: string
+    description: "Dataset or table description"
+
+timeout_seconds: 300
+requires_project: true
+output_format: json
+
+# Service connections
+connects_to:
+  - cloud_storage: "Data lake storage"
+  - vertex_ai: "ML training data"
+  - cloud_logging: "Log sink destination"
+  - pubsub: "Streaming inserts"
+  - dataflow: "ETL pipelines"
+  - looker: "BI dashboards"
+
+examples:
+  - description: "Create analytics dataset"
+    params:
+      action: "create_dataset"
+      dataset_id: "analytics"
+      location: "US"
+      description: "App analytics data"
+
+  - description: "Create partitioned events table"
+    params:
+      action: "create_table"
+      dataset_id: "analytics"
+      table_id: "events"
+      schema: "event_id:STRING,user_id:STRING,event_type:STRING,timestamp:TIMESTAMP,properties:JSON"
+      partition_field: "timestamp"
+      cluster_fields: "user_id,event_type"
+
+  - description: "Load data from GCS"
+    params:
+      action: "load"
+      dataset_id: "analytics"
+      table_id: "events"
+      source_uri: "gs://mybucket/events/*.json"
+      source_format: "JSON"
+
+  - description: "Run analytics query"
+    params:
+      action: "query"
+      query_sql: "SELECT event_type, COUNT(*) FROM analytics.events GROUP BY 1"
+
+related_tools:
+  - cloud_storage
+  - vertex_ai
+  - cloud_logging
+  - pubsub
+
+pricing_url: "https://cloud.google.com/bigquery/pricing"
+estimated_cost: "$5/TB queried, $0.02/GB/month storage"

@@ -1,0 +1,118 @@
+# Cloud Tasks - Async Task Queues
+name: cloud_tasks
+description: "Create and manage task queues for async/background job processing"
+category: gcp_integration
+version: "1.0.0"
+
+command:
+  base: "gcloud tasks queues"
+  flags:
+    project_id: "--project"
+    location: "--location"
+    max_dispatches_per_second: "--max-dispatches-per-second"
+    max_concurrent_dispatches: "--max-concurrent-dispatches"
+    max_attempts: "--max-attempts"
+    min_backoff: "--min-backoff"
+    max_backoff: "--max-backoff"
+    max_retry_duration: "--max-retry-duration"
+
+parameters:
+  - name: action
+    type: enum
+    required: true
+    enum_values:
+      - "create"       # Create queue
+      - "delete"       # Delete queue
+      - "describe"     # Get queue details
+      - "list"         # List queues
+      - "update"       # Update queue settings
+      - "pause"        # Pause queue
+      - "resume"       # Resume queue
+      - "purge"        # Delete all tasks in queue
+    description: "Operation to perform"
+
+  - name: queue_name
+    type: string
+    required: true
+    pattern: "^[a-zA-Z][a-zA-Z0-9-]{0,99}$"
+    description: "Queue name"
+
+  - name: project_id
+    type: string
+    required: true
+    description: "GCP project ID"
+
+  - name: location
+    type: string
+    default: "us-central1"
+    description: "Queue location"
+
+  - name: max_dispatches_per_second
+    type: float
+    default: 500
+    min_value: 0.1
+    max_value: 5000
+    description: "Max tasks dispatched per second"
+
+  - name: max_concurrent_dispatches
+    type: integer
+    default: 1000
+    min_value: 1
+    max_value: 5000
+    description: "Max concurrent task executions"
+
+  - name: max_attempts
+    type: integer
+    default: 100
+    min_value: -1
+    max_value: 100
+    description: "Max retry attempts (-1 = unlimited)"
+
+  - name: min_backoff
+    type: string
+    default: "0.1s"
+    description: "Minimum time between retries"
+
+  - name: max_backoff
+    type: string
+    default: "3600s"
+    description: "Maximum time between retries"
+
+  - name: max_retry_duration
+    type: string
+    default: "0s"
+    description: "Max total retry time (0 = unlimited)"
+
+timeout_seconds: 60
+requires_project: true
+output_format: json
+
+examples:
+  - description: "Create email queue (10/sec rate limit)"
+    params:
+      action: "create"
+      queue_name: "email-queue"
+      max_dispatches_per_second: 10
+      max_attempts: 5
+
+  - description: "Create high-throughput queue"
+    params:
+      action: "create"
+      queue_name: "processing-queue"
+      max_dispatches_per_second: 500
+      max_concurrent_dispatches: 100
+
+  - description: "Create low-priority background queue"
+    params:
+      action: "create"
+      queue_name: "background-jobs"
+      max_dispatches_per_second: 1
+      max_attempts: 3
+
+related_tools:
+  - cloud_run
+  - cloud_functions
+  - pubsub
+
+pricing_url: "https://cloud.google.com/tasks/pricing"
+estimated_cost: "$0.40/million tasks (1M free/month)"

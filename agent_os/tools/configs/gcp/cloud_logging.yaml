@@ -1,0 +1,121 @@
+# Cloud Logging - Log Management and Analysis
+name: cloud_logging
+description: "Query logs, create sinks, and set up log-based metrics"
+category: gcp_observability
+version: "1.0.0"
+
+command:
+  base: "gcloud logging"
+  flags:
+    project_id: "--project"
+    format: "--format"
+    limit: "--limit"
+
+parameters:
+  - name: action
+    type: enum
+    required: true
+    enum_values:
+      - "read"              # Query logs
+      - "create_sink"       # Create log sink
+      - "delete_sink"       # Delete sink
+      - "list_sinks"        # List sinks
+      - "create_metric"     # Create log-based metric
+      - "delete_metric"     # Delete metric
+      - "list_metrics"      # List metrics
+      - "create_exclusion"  # Create log exclusion
+    description: "Operation to perform"
+
+  - name: project_id
+    type: string
+    required: true
+    description: "GCP project ID"
+
+  - name: log_filter
+    type: string
+    description: "Log filter query"
+
+  - name: limit
+    type: integer
+    default: 100
+    min_value: 1
+    max_value: 1000
+    description: "Max logs to return"
+
+  - name: sink_name
+    type: string
+    description: "Sink name"
+
+  - name: sink_destination
+    type: string
+    description: "Sink destination (GCS, BigQuery, Pub/Sub)"
+
+  - name: metric_name
+    type: string
+    description: "Log-based metric name"
+
+  - name: metric_filter
+    type: string
+    description: "Filter for log-based metric"
+
+  - name: metric_description
+    type: string
+    description: "Metric description"
+
+  - name: exclusion_name
+    type: string
+    description: "Log exclusion name"
+
+  - name: exclusion_filter
+    type: string
+    description: "Filter for logs to exclude"
+
+  - name: freshness
+    type: string
+    default: "1d"
+    description: "How recent logs to query"
+
+timeout_seconds: 60
+requires_project: true
+output_format: json
+
+examples:
+  - description: "Query Cloud Run errors"
+    params:
+      action: "read"
+      log_filter: "resource.type=\"cloud_run_revision\" severity>=ERROR"
+      limit: 50
+
+  - description: "Query specific service logs"
+    params:
+      action: "read"
+      log_filter: 'resource.labels.service_name="myapp-prod" timestamp>="2024-01-01"'
+      limit: 100
+
+  - description: "Create BigQuery sink for audit"
+    params:
+      action: "create_sink"
+      sink_name: "audit-logs-bq"
+      sink_destination: "bigquery.googleapis.com/projects/myproj/datasets/audit_logs"
+      log_filter: 'logName:"cloudaudit.googleapis.com"'
+
+  - description: "Create error count metric"
+    params:
+      action: "create_metric"
+      metric_name: "api-errors"
+      metric_filter: 'resource.type="cloud_run_revision" severity>=ERROR'
+      metric_description: "Count of API errors"
+
+  - description: "Exclude health check logs"
+    params:
+      action: "create_exclusion"
+      exclusion_name: "exclude-health-checks"
+      exclusion_filter: 'httpRequest.requestUrl="/health"'
+
+related_tools:
+  - cloud_monitoring
+  - cloud_run
+  - cloud_functions
+
+pricing_url: "https://cloud.google.com/logging/pricing"
+estimated_cost: "$0.50/GB ingested (50GB free/month)"

@@ -1,0 +1,153 @@
+# Workload Identity Federation - Keyless Authentication
+name: workload_identity
+description: "Enable keyless authentication from GitHub Actions, AWS, Azure, and other providers"
+category: gcp_security
+version: "1.0.0"
+
+command:
+  base: "gcloud iam workload-identity-pools"
+  flags:
+    project_id: "--project"
+    location: "--location"
+
+parameters:
+  - name: action
+    type: enum
+    required: true
+    enum_values:
+      - "create_pool"         # Create identity pool
+      - "delete_pool"         # Delete pool
+      - "describe_pool"       # Get pool details
+      - "list_pools"          # List pools
+      - "create_provider"     # Create OIDC/SAML provider
+      - "delete_provider"     # Delete provider
+      - "describe_provider"   # Get provider details
+      - "setup_github"        # Quick setup for GitHub Actions
+      - "setup_gitlab"        # Quick setup for GitLab
+      - "setup_aws"           # Quick setup for AWS
+      - "setup_azure"         # Quick setup for Azure AD
+    description: "Operation to perform"
+
+  - name: pool_name
+    type: string
+    required: true
+    pattern: "^[a-z][a-z0-9-]{0,31}$"
+    description: "Identity pool name"
+
+  - name: project_id
+    type: string
+    required: true
+    description: "GCP project ID"
+
+  - name: provider_name
+    type: string
+    default: "provider"
+    description: "Provider name within pool"
+
+  - name: provider_type
+    type: enum
+    default: "oidc"
+    enum_values:
+      - "oidc"    # OpenID Connect
+      - "saml"    # SAML 2.0
+    description: "Provider type"
+
+  - name: issuer_uri
+    type: string
+    description: "OIDC issuer URI"
+
+  - name: allowed_audiences
+    type: string
+    description: "Allowed audiences (comma-separated)"
+
+  - name: attribute_mapping
+    type: string
+    description: "Attribute mapping (google.subject=assertion.sub,...)"
+
+  - name: attribute_condition
+    type: string
+    description: "CEL condition for allowed identities"
+
+  - name: github_org
+    type: string
+    description: "GitHub organization (for github setup)"
+
+  - name: github_repo
+    type: string
+    description: "GitHub repository owner/repo"
+
+  - name: service_account
+    type: string
+    description: "Service account to impersonate"
+
+  - name: display_name
+    type: string
+    description: "Human-readable name"
+
+timeout_seconds: 120
+requires_project: true
+output_format: json
+
+# Service connections
+connects_to:
+  - service_account: "Impersonate for GCP access"
+  - cloud_build: "CI/CD authentication"
+  - cloud_run: "Deployment access"
+  - artifact_registry: "Push images"
+
+examples:
+  - description: "Quick GitHub Actions setup"
+    params:
+      action: "setup_github"
+      pool_name: "github-pool"
+      provider_name: "github-provider"
+      github_repo: "myorg/myapp"
+      service_account: "github-deployer"
+
+  - description: "Create identity pool"
+    params:
+      action: "create_pool"
+      pool_name: "github-actions"
+      display_name: "GitHub Actions Pool"
+
+  - description: "Create GitHub OIDC provider"
+    params:
+      action: "create_provider"
+      pool_name: "github-actions"
+      provider_name: "github"
+      provider_type: "oidc"
+      issuer_uri: "https://token.actions.githubusercontent.com"
+      attribute_mapping: "google.subject=assertion.sub,attribute.actor=assertion.actor,attribute.repository=assertion.repository"
+      attribute_condition: "assertion.repository=='myorg/myapp'"
+
+  - description: "Create GitLab OIDC provider"
+    params:
+      action: "create_provider"
+      pool_name: "gitlab-pool"
+      provider_name: "gitlab"
+      provider_type: "oidc"
+      issuer_uri: "https://gitlab.com"
+      attribute_mapping: "google.subject=assertion.sub,attribute.project_path=assertion.project_path"
+
+  - description: "Create AWS provider"
+    params:
+      action: "setup_aws"
+      pool_name: "aws-pool"
+      provider_name: "aws"
+      issuer_uri: "https://sts.amazonaws.com"
+
+  - description: "Create Azure AD provider"
+    params:
+      action: "setup_azure"
+      pool_name: "azure-pool"
+      provider_name: "azure-ad"
+      issuer_uri: "https://login.microsoftonline.com/TENANT_ID/v2.0"
+
+related_tools:
+  - service_account
+  - cloud_build
+  - cloud_run
+  - artifact_registry
+
+pricing_url: "https://cloud.google.com/iam/pricing"
+estimated_cost: "Free (included in IAM)"
