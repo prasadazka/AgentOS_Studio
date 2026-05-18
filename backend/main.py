@@ -445,7 +445,7 @@ def chat_stream(name: str, req: ChatRequest):
 
 # --- Agent Files (upload files for agent chat without needing a project) ---
 
-AGENT_UPLOADS_DIR = Path(os.path.expanduser("~/.agent_os/agent_uploads"))
+AGENT_UPLOADS_DIR = Path(os.getenv("AGENTOS_AGENT_UPLOADS_DIR", os.path.expanduser("~/.agent_os/agent_uploads")))
 
 
 def _agent_upload_dir(agent_name: str) -> Path:

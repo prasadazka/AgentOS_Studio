@@ -25,6 +25,7 @@ env:
   AR_REPO: agentos
   BACKEND_SERVICE: agentos-backend
   FRONTEND_SERVICE: agentos-frontend
+  DATA_BUCKET: agentos-496704-studio-data
 
 jobs:
   # --------------------------------------------------------------------
@@ -86,6 +87,7 @@ jobs:
             --image=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/backend:${{ github.sha }} \
             --region=${{ env.REGION }} \
             --platform=managed \
+            --execution-environment=gen2 \
             --allow-unauthenticated \
             --port=8080 \
             --cpu=2 \
@@ -94,6 +96,9 @@ jobs:
             --min-instances=0 \
             --max-instances=10 \
             --set-secrets=OPENAI_API_KEY=openai-api-key:latest,GOOGLE_API_KEY=google-api-key:latest \
+            --set-env-vars=AGENTOS_PROJECTS_DIR=/mnt/data/projects,AGENTOS_AGENT_UPLOADS_DIR=/mnt/data/agent_uploads \
+            --add-volume=name=studio-data,type=cloud-storage,bucket=${{ env.DATA_BUCKET }} \
+            --add-volume-mount=volume=studio-data,mount-path=/mnt/data \
             --quiet
           URL=$(gcloud run services describe ${{ env.BACKEND_SERVICE }} --region=${{ env.REGION }} --format='value(status.url)')
           echo "url=$URL" >> "$GITHUB_OUTPUT"
